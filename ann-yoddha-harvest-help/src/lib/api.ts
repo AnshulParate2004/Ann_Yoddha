@@ -55,13 +55,16 @@ class ApiClient {
   }
 
   async getHistory(limit = 50) {
-    return this.request<Array<{
-      id: string;
-      disease_detected: string;
-      severity: string;
-      confidence: number;
-      created_at: string;
-    }>>(`/api/v1/farmers/me/history?limit=${limit}`);
+    return this.request<{
+      history: Array<{
+        id: number;
+        disease_detected: string | null;
+        severity: string | null;
+        confidence: number | null;
+        created_at: string | null;
+      }>;
+      limit: number;
+    }>(`/api/v1/farmers/me/history?limit=${limit}`);
   }
 
   // Diagnosis

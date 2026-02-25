@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,8 +28,17 @@ const item = {
 };
 
 const Dashboard = () => {
-  const profile = useQuery({ queryKey: ["profile"], queryFn: () => api.getProfile() });
-  const history = useQuery({ queryKey: ["history"], queryFn: () => api.getHistory() });
+  const { isAuthenticated } = useAuth();
+  const profile = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => api.getProfile(),
+    enabled: isAuthenticated,
+  });
+  const history = useQuery({
+    queryKey: ["history"],
+    queryFn: () => api.getHistory(),
+    enabled: isAuthenticated,
+  });
 
   return (
     <div className="space-y-8">
@@ -66,7 +76,7 @@ const Dashboard = () => {
               <Skeleton key={i} className="h-32 rounded-lg" />
             ))}
           </div>
-        ) : !history.data?.length ? (
+        ) : !history.data?.history?.length ? (
           <Card className="border-dashed border-primary/20">
             <CardContent className="flex flex-col items-center py-12 text-center">
               <Search className="mb-3 h-10 w-10 text-muted-foreground/50" />
@@ -83,7 +93,7 @@ const Dashboard = () => {
             initial="hidden"
             animate="show"
           >
-            {history.data.map((d) => (
+            {history.data.history.map((d) => (
               <motion.div key={d.id} variants={item}>
                 <Card className="h-full border-primary/10 transition-shadow hover:shadow-md">
                   <CardHeader className="pb-2">

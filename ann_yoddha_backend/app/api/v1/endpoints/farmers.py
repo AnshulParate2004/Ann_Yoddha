@@ -45,7 +45,7 @@ async def get_my_diagnosis_history(current_user_id: CurrentUserId, limit: int = 
         .maybe_single()
         .execute()
     )
-    if not farmer_r.data:
+    if farmer_r is None or not getattr(farmer_r, "data", None):
         return {"history": [], "limit": limit}
     farmer_id = farmer_r.data["id"]
     # Get diagnosis records
@@ -57,6 +57,7 @@ async def get_my_diagnosis_history(current_user_id: CurrentUserId, limit: int = 
         .limit(limit)
         .execute()
     )
+    rows = (r.data if r is not None and hasattr(r, "data") and r.data else []) or []
     history = [
         {
             "id": row["id"],
@@ -65,6 +66,6 @@ async def get_my_diagnosis_history(current_user_id: CurrentUserId, limit: int = 
             "confidence": row["confidence"],
             "created_at": row["created_at"],
         }
-        for row in (r.data or [])
+        for row in rows
     ]
     return {"history": history, "limit": limit}
