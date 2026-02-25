@@ -177,7 +177,11 @@ const Diagnosis = () => {
               </motion.div>
             ))}
             <div className="flex gap-3">
-              <Button className="flex-1" onClick={() => setStep("recommendations")}>
+              <Button
+                className="flex-1"
+                onClick={() => setStep("recommendations")}
+                disabled={!result?.detections?.length}
+              >
                 View Recommendations
               </Button>
               <Button variant="outline" onClick={reset} className="gap-2">
@@ -191,6 +195,12 @@ const Diagnosis = () => {
         {/* Step 3: Recommendations */}
         {step === "recommendations" && (
           <motion.div key="recs" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} className="space-y-4">
+            {topDetection && (
+              <p className="text-muted-foreground">
+                Treatment solutions for <span className="font-semibold text-foreground">{topDetection.disease}</span>
+                {topDetection.severity ? ` (${topDetection.severity} severity)` : ""}.
+              </p>
+            )}
             {recs.isLoading ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <Card key={i} className="border-primary/10">
@@ -201,10 +211,16 @@ const Diagnosis = () => {
                   </CardContent>
                 </Card>
               ))
+            ) : !topDetection ? (
+              <Card className="border-dashed border-primary/20">
+                <CardContent className="py-10 text-center text-muted-foreground">
+                  No disease was detected to show recommendations. Try again with a clear crop or leaf image.
+                </CardContent>
+              </Card>
             ) : !recs.data?.treatments?.length ? (
               <Card className="border-dashed border-primary/20">
                 <CardContent className="py-10 text-center text-muted-foreground">
-                  No recommendations available for this disease.
+                  No recommendations available for &quot;{topDetection.disease}&quot;. We cover Rust, Leaf blight, Karnal bunt, and Fusarium head blight.
                 </CardContent>
               </Card>
             ) : (
