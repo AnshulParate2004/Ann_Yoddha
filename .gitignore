@@ -1,0 +1,18 @@
+# Env and secrets
+.env
+.env.local
+.env.*.local
+
+# Dependencies and build
+node_modules/
+dist/
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+
+# IDE and OS
+.idea/
+.vscode/
+.DS_Store
+*.log
