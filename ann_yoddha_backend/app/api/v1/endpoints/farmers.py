@@ -20,9 +20,9 @@ async def get_my_profile(current_user_id: CurrentUserId):
         .maybe_single()
         .execute()
     )
-    row = r.data
-    if not row:
+    if r is None or not getattr(r, "data", None):
         raise HTTPException(status_code=404, detail="Farmer profile not found")
+    row = r.data
     return {
         "farmer_id": row["id"],
         "user_id": row["user_id"],
