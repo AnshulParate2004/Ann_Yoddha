@@ -57,6 +57,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!supabase) {
+      setState(s => ({ ...s, isLoading: false }));
+      return;
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         setSession(session);
@@ -76,12 +81,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [setSession, verifyToken]);
 
   const login = async (email: string, password: string) => {
+    if (!supabase) {
+      throw new Error("Sign-in is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env.");
+    }
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw new Error(error.message);
     if (data.session) setSession(data.session);
   };
 
   const signup = async (email: string, password: string, name: string) => {
+    if (!supabase) {
+      throw new Error("Sign-up is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env.");
+    }
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -91,7 +102,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (data.session) {
       setSession(data.session);
     } else if (data.user) {
-      // Email confirmation may be required; user exists but no session yet
       throw new Error(
         "Check your email to confirm your account. Then sign in."
       );
@@ -99,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    if (supabase) await supabase.auth.signOut();
     localStorage.removeItem("auth_token");
     setState({ token: null, userId: null, isLoading: false, isAuthenticated: false });
   };
