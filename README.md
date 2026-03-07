@@ -1,6 +1,33 @@
 # Ann Yoddha
 
-Wheat disease detection for farmers. Upload crop images, get AI diagnosis and treatment advice. Web app + FastAPI backend.
+# Problem Statement
+
+Farmers often cannot identify wheat crop diseases early. Because of this:
+
+Crop yield decreases
+
+Wrong pesticides are used
+
+Disease spreads quickly
+
+The solution is a web application where farmers upload crop images, and an AI model detects the disease and suggests treatment.
+
+# Architecture
+
+Farmer (Mobile/Web)
+        │
+        ▼
+   React Web App
+        │
+        ▼
+    FastAPI Backend
+        │
+        ├── Image Processing
+        ├── ML Model (Disease Detection)
+        └── Recommendation Engine
+        │
+        ▼
+   Database (Store Results)
 
 ## What it’s made of
 
