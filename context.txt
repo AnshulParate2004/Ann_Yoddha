@@ -1,0 +1,419 @@
+Ann Yoddha Context Handoff
+Generated: 2026-04-07
+
+Current scope completed
+- Task 1: backend JWT authentication setup.
+- Task 2: backend protected AI inference flow.
+- Task 3a: backend offline scan sync endpoint.
+- Task 3b: mobile auth context and root auth gate.
+- Task 3c: mobile protected predict wiring and offline sync.
+- Task 4: web app backend JWT integration and protected diagnosis flow.
+
+What is already implemented
+- Real backend entrypoint: ann_yoddha_backend/app/main.py
+- Compatibility shim: ann_yoddha_backend/main.py
+- Auth utilities: ann_yoddha_backend/app/auth.py
+- SQLAlchemy models: ann_yoddha_backend/app/db/models.py
+- DB session bootstrap: ann_yoddha_backend/app/db/session.py
+- Config defaults: ann_yoddha_backend/app/core/config.py
+- Reusable inference helper: ann_yoddha_backend/app/services/inference.py
+
+Backend auth behavior now
+- Local SQLAlchemy auth is enabled by default with SQLite at sqlite:///./ann_yoddha.db
+- JWT tokens are created with python-jose and validated through OAuth2PasswordBearer
+- Passwords are hashed with passlib bcrypt
+- CORS is enabled for local/mobile clients
+- Startup seeds these accounts if missing:
+  - admin@annyoddha.com / AdminPassword123! / role=admin
+  - farmer_01@annyoddha.com / FarmerPassword123! / role=user
+
+Implemented auth endpoints
+- POST /auth/register
+  - JSON body: { "email": "...", "password": "..." }
+- POST /auth/login
+  - form body using OAuth2PasswordRequestForm
+  - use email in the username field
+- GET /auth/me
+- GET /api/v1/auth/me
+- GET /health
+- POST /predict
+  - multipart form upload with `image`
+  - requires `Authorization: Bearer <jwt>`
+- POST /sync
+  - JSON body: `{ "scans": [...] }`
+  - requires `Authorization: Bearer <jwt>`
+  - returns local-to-cloud sync mappings
+
+Database models currently available
+- User
+  - id
+  - email
+  - hashed_password
+  - role
+  - created_at
+- ScanHistory
+  - id
+  - user_id
+  - disease_name
+  - confidence
+  - treatment
+  - image_url
+  - timestamp
+
+Important architectural note
+- ann_yoddha_backend/main.py used to be a dummy standalone app.
+- It now points to the real FastAPI app in ann_yoddha_backend/app/main.py.
+- Future work should continue in ann_yoddha_backend/app/main.py, not rebuild another backend entrypoint.
+
+Known deferred work
+- Validation and runtime verification
+
+Backend inference behavior now
+- Loads the real Keras model from ann_yoddha_backend/models/wheat_model.keras
+- Preprocesses uploaded images to RGB 224x224 normalized tensors
+- Maps outputs to the confirmed 15 wheat disease classes in the required order
+- Returns `uncertain` when confidence < 0.5
+- Uses a treatment dictionary for each disease plus `uncertain`
+- Saves each successful prediction to `ScanHistory` for the authenticated user
+- Returns diagnosis summary fields only: disease_name, confidence, treatment, timestamp, status
+
+Dependencies updated for inference
+- Added TensorFlow for Keras model loading
+- Added NumPy and Pillow for image preprocessing
+
+Backend sync behavior now
+- Protected `POST /sync` accepts an array of offline scans for the authenticated user
+- Each scan can include `local_id`, `disease_name`, `confidence`, `treatment`, `image_url`, and `timestamp`
+- The backend bulk inserts synced rows into `ScanHistory`
+- The response returns `synced_count` plus `synced_scans` with `local_id` to `cloud_id` mappings so the mobile app can mark rows synced
+
+Confirmed model details for later
+- Use keras model: ann_yoddha_backend/models/wheat_model.keras
+- Class names, in order:
+  1. yellow rust
+  2. leaf blight
+  3. tan spot
+  4. black rust
+  5. mildew
+  6. mite
+  7. stem fly
+  8. common root rot
+  9. blast
+  10. healthy
+  11. brown rust
+  12. smut
+  13. aphid
+  14. fusarium head blight
+  15. septoria
+- Confidence rule for later:
+  - if confidence < 0.5, return uncertain
+
+Later task prompt: Task 2
+Use the existing backend auth system already implemented in ann_yoddha_backend/app/main.py and ann_yoddha_backend/app/auth.py. Do not rebuild auth. Implement only the protected AI inference flow.
+
+Status:
+- Completed on 2026-04-07
+
+Requirements:
+- Load the real Keras model from ann_yoddha_backend/models/wheat_model.keras
+- Add any missing backend dependency required for Keras/TensorFlow inference
+- Create a reusable inference helper instead of putting all model logic inline in main.py
+- Add a protected POST /predict endpoint that requires a valid JWT using the existing get_current_user flow
+- Accept an uploaded image file, preprocess it to 224x224 normalized input, run inference, map the top class to the confirmed 15 wheat disease names, and return uncertain when confidence < 0.5
+- Create a treatment dictionary mapping each disease name to an actionable treatment string
+- Save each successful cloud prediction to the existing ScanHistory table for the authenticated user
+- Keep CORS compatible with local IP / hotspot access
+- Preserve ann_yoddha_backend/main.py as a shim only
+
+Files that should likely change in Task 2
+- ann_yoddha_backend/app/main.py
+- ann_yoddha_backend/app/services/... (create inference helper here)
+- ann_yoddha_backend/pyproject.toml
+- ann_yoddha_backend/requirements.txt
+
+Files changed for Task 2
+- ann_yoddha_backend/app/main.py
+- ann_yoddha_backend/app/services/inference.py
+- ann_yoddha_backend/pyproject.toml
+- ann_yoddha_backend/requirements.txt
+
+Verification still pending
+- Install backend dependencies in the local environment
+- Run import/startup checks with TensorFlow available
+- Exercise register/login/me and protected `/predict` manually with a real image
+
+Later task prompt: Task 3
+Use the existing backend auth system from task 1. Do not change backend auth contracts unless strictly necessary. Implement only the mobile auth wiring and offline cloud sync.
+
+Status:
+- Backend prerequisite `/sync` completed on 2026-04-07
+- Mobile auth context and root auth gate completed on 2026-04-07
+- Mobile protected predict wiring and offline sync completed on 2026-04-07
+
+Requirements:
+- Mobile app path: ann-yoddha-mobile
+- Add AuthContext.tsx to manage token, user, login, register, logout, and bootstrap from storage
+- Store JWT securely with expo-secure-store on native and localStorage fallback on web
+- Build LoginScreen and RegisterScreen without rewriting the existing tab UI more than necessary
+- Add a root auth gate so unauthenticated users see auth screens and authenticated users see the existing app tabs
+- Update predict.ts to attach Authorization: Bearer <token>
+- Update local SQLite scan handling so offline scans are stored with is_synced = 0
+- Add /sync integration that sends unsynced local scan rows to the backend with JWT
+- After successful sync, mark local rows as synced
+- Handle web preview safely for SecureStore, Camera, and SQLite
+- Prefer preserving current screen layout and navigation structure unless a change is required for auth gating
+
+Files that should likely change in Task 3
+- ann-yoddha-mobile/App.tsx
+- ann-yoddha-mobile/src/navigation/AppNavigator.tsx
+- ann-yoddha-mobile/src/api/predict.ts
+- ann-yoddha-mobile/src/api/auth.ts
+- ann-yoddha-mobile/src/database/sqlite.ts
+- ann-yoddha-mobile/src/services/syncService.ts or syncService.tsx
+- ann-yoddha-mobile/src/screens/LoginScreen.tsx
+- ann-yoddha-mobile/src/screens/RegisterScreen.tsx
+- ann-yoddha-mobile/package.json
+
+Files changed for Task 3b
+- ann-yoddha-mobile/App.tsx
+- ann-yoddha-mobile/src/navigation/AppNavigator.tsx
+- ann-yoddha-mobile/src/api/auth.ts
+- ann-yoddha-mobile/src/context/AuthContext.tsx
+- ann-yoddha-mobile/src/screens/LoginScreen.tsx
+- ann-yoddha-mobile/src/screens/RegisterScreen.tsx
+- ann-yoddha-mobile/package.json
+- ann-yoddha-mobile/package-lock.json
+
+Files changed for Task 3c
+- ann-yoddha-mobile/src/api/predict.ts
+- ann-yoddha-mobile/src/database/sqlite.ts
+- ann-yoddha-mobile/src/services/syncService.tsx
+- ann-yoddha-mobile/src/screens/Scanner.tsx
+- ann-yoddha-mobile/src/screens/Dashboard.tsx
+- ann-yoddha-mobile/src/utils/constants.ts
+
+Mobile prediction and sync behavior now
+- `predict.ts` uploads with the backend field name `image` and includes `Authorization: Bearer <token>`
+- Web upload falls back to `fetch` + `FormData`
+- Scanner saves every scan locally even if cloud prediction fails
+- Successful cloud predictions are stored locally with `is_synced = 1`
+- Failed or offline predictions are stored locally with `is_synced = 0`
+- SQLite helpers can now fetch unsynced scans and mark them synced
+- Sync service sends pending rows to backend `POST /sync` with JWT instead of re-uploading images
+- Dashboard manual sync now reports synced count and refreshes local stats
+- Backend URL now defaults by platform and can be overridden with `EXPO_PUBLIC_BACKEND_URL`
+
+Mobile auth behavior now
+- `AuthProvider` bootstraps the stored JWT on app launch
+- Native token storage uses `expo-secure-store`
+- Web token storage falls back to `localStorage`
+- Login and register call the backend `/auth/login` and `/auth/register` endpoints
+- The app shows login/register screens until a valid token is restored or obtained
+- Authenticated users are routed into the existing tab-based app
+- Header logout clears the stored token and returns the app to the auth screens
+
+Web app backend auth behavior now
+- Web `AuthContext` uses backend `/auth/login`, `/auth/register`, and `/auth/me`
+- JWT is stored in `localStorage` for browser session auth
+- Protected routes continue using the existing route structure
+- Diagnosis page calls protected backend `/predict` and shows farmer-facing diagnosis output
+- Web dashboard history reads from backend `/history`
+- Profile derives simple display information from the authenticated backend user
+- Analytics safely degrades to empty-state data if analytics endpoints return placeholders
+
+Files changed for Task 4
+- ann_yoddha_backend/app/main.py
+- ann-yoddha-harvest-help/src/contexts/AuthContext.tsx
+- ann-yoddha-harvest-help/src/lib/api.ts
+- ann-yoddha-harvest-help/src/pages/Dashboard.tsx
+- ann-yoddha-harvest-help/src/pages/Profile.tsx
+- ann-yoddha-harvest-help/src/pages/Diagnosis.tsx
+
+Verification notes
+- The current local Python environment in this workspace did not have passlib, jose, sqlalchemy, or tensorflow installed at inspection time.
+- Task 1 code has been written, but dependency installation/runtime verification still needs to be done in the environment before actually running the backend.
+- `/sync` was added structurally but still needs runtime verification once dependencies are installed
+- Backend syntax/import check passed with `python -m py_compile` for `app/main.py` and `app/services/inference.py`
+- Installed mobile dependency `expo-secure-store`
+- Mobile TypeScript check passed with `npx.cmd tsc --noEmit`
+- Web production build passed with `npm.cmd run build`
+- Backend runtime endpoint verification is still pending until Python dependencies are installed for the backend environment
+- Mobile and web runtime flow verification in the browser/device simulators is still pending
+
+Detailed completion prompt for later
+Use the current repository state as the starting point. Do not redo completed backend auth scaffolding. Build the remaining product as a coherent full-stack Ann Yoddha SaaS application with offline-first behavior, protected inference, cloud sync, and consistent auth across backend, mobile, and web.
+
+Primary rule
+- Reuse the existing real backend app at ann_yoddha_backend/app/main.py and the existing auth layer in ann_yoddha_backend/app/auth.py.
+- Do not create another parallel backend entrypoint or a second auth system.
+- Keep changes incremental and compatible with the current repo structure.
+
+Part A: Finish backend protected inference and sync
+- Load the real Keras model from ann_yoddha_backend/models/wheat_model.keras
+- Add missing TensorFlow/Keras dependency support in backend dependency files
+- Create a reusable inference helper module under ann_yoddha_backend/app/services
+- Implement protected POST /predict
+- Require JWT using the existing current user dependency
+- Accept multipart image upload
+- Preprocess image to 224x224 with normalized values
+- Run model inference and map outputs to these exact 15 classes in this exact order:
+  - yellow rust
+  - leaf blight
+  - tan spot
+  - black rust
+  - mildew
+  - mite
+  - stem fly
+  - common root rot
+  - blast
+  - healthy
+  - brown rust
+  - smut
+  - aphid
+  - fusarium head blight
+  - septoria
+- If confidence is below 0.5, return disease_name as uncertain
+- Add a treatment dictionary for each disease and uncertain
+- Save every successful cloud prediction into ScanHistory for the authenticated user
+- Implement POST /sync to accept an array of offline scans and bulk insert them into ScanHistory
+- Return enough information for the mobile client to mark synced local rows
+- Preserve CORS support for local IP / hotspot development
+
+Part B: Finish mobile auth and protected app flow
+- Work inside ann-yoddha-mobile
+- Keep the existing navigation/tabs unless a minimal auth gate requires small structural changes
+- Add AuthContext.tsx with:
+  - token
+  - user
+  - loading
+  - login(email, password)
+  - register(email, password)
+  - logout()
+  - bootstrap token restore on app launch
+- Store JWT with expo-secure-store on native
+- Use localStorage fallback on web
+- Create LoginScreen.tsx and RegisterScreen.tsx with simple clean forms
+- Add root auth gating so unauthenticated users see auth screens and authenticated users see the current app tabs
+- Do not unnecessarily redesign current UI
+
+Part C: Finish mobile protected inference and offline sync
+- Update ann-yoddha-mobile/src/api/predict.ts to attach Authorization Bearer token
+- Make the upload flow safe for both native and web where possible
+- Update scanner flow so:
+  - online prediction stores synced scans locally with is_synced = 1
+  - offline or failed prediction still stores local scan with is_synced = 0
+- Expand ann-yoddha-mobile/src/database/sqlite.ts with helpers to:
+  - fetch unsynced rows
+  - mark rows synced by id
+  - keep web-safe fallback behavior when SQLite is unavailable
+- Implement sync service that:
+  - checks connectivity
+  - reads unsynced scans
+  - POSTs them to backend /sync with JWT
+  - marks rows synced only after backend success
+- Trigger sync manually from the dashboard button and optionally after successful login
+
+Part D: Finish web app integration
+- Work inside ann-yoddha-harvest-help
+- Reuse the current auth-related structure where possible
+- Ensure the web app can authenticate against the same backend JWT endpoints if this app is intended to use local backend auth instead of Supabase for this flow
+- Add or update API utilities so login/register/me use:
+  - POST /auth/register
+  - POST /auth/login
+  - GET /auth/me
+- Store token safely for web session usage
+- Add route protection for authenticated pages if not already consistent
+- Ensure diagnosis or upload pages can call the protected backend predict flow with Bearer token
+- Keep the existing design system and page layouts intact unless wiring changes require localized edits
+
+Part E: Validation and handoff expectations
+- Run targeted checks after implementation
+- For backend:
+  - import/syntax checks
+  - basic endpoint startup verification
+  - if dependencies are installed, test register/login/me and predict/sync manually
+- For mobile:
+  - check TypeScript where possible
+  - ensure web fallbacks do not crash when Camera, SQLite, or SecureStore are unavailable
+- For web:
+  - check build or TypeScript where possible
+- Summarize:
+  - what changed
+  - what was verified
+  - any remaining environment/setup steps
+
+Suggested execution order for the later implementation
+1. Complete backend /predict and /sync first
+2. Complete mobile AuthContext and login/register flow
+3. Wire mobile predict and sync against backend
+4. Update web app auth/API wiring last
+
+Detailed UX prompt for prediction results
+When implementing the mobile app and web app prediction flow, remember that the end user is not using a generic AI tool. They are using a crop diagnosis product. The UI should present the prediction as a clear agricultural diagnosis and recommended action, not as raw model output.
+
+User-facing prediction experience requirements
+- After image capture or upload, show a clear loading state such as:
+  - Analyzing crop image...
+  - Checking for wheat disease...
+- On success, show a result card or result section with:
+  - disease name
+  - confidence percentage
+  - treatment or recommended action
+  - scan timestamp
+  - sync state if relevant
+- If the disease is healthy, show a reassuring healthy state and preventive guidance
+- If confidence is below 0.5, show uncertain instead of a disease label
+- For uncertain results, guide the user to retake the image in better light with a clearer crop focus
+- Always save the result into local history on mobile, even if the backend is unavailable
+
+What the user should see after a prediction
+- Disease: Yellow Rust
+- Confidence: 87%
+- Treatment: Apply the mapped actionable treatment text
+- Status: Saved to cloud or Saved offline, sync pending
+
+What the user should see for healthy output
+- Disease: Healthy
+- Confidence: 92%
+- Treatment: No urgent treatment needed. Continue scouting and preventive care.
+
+What the user should see for uncertain output
+- Result: Uncertain
+- Confidence: 41%
+- Guidance: Retake the image in better lighting and focus on one leaf or wheat head.
+- Advice: Avoid spraying solely based on this result until a clearer scan is available.
+
+What should not be shown in normal UI
+- raw class index
+- logits
+- tensor output
+- internal backend ids
+- model file names
+- technical exception traces
+
+Recommended UI actions after showing a result
+- Scan Again
+- View History
+- Sync Now if offline data is pending
+- Back to Dashboard
+
+Recommended mobile history fields
+- thumbnail image
+- disease name
+- confidence
+- date/time
+- synced or local-only badge
+
+Recommended web diagnosis page behavior
+- upload image
+- preview selected image
+- show loading state
+- show diagnosis result block
+- show treatment advice block
+- optionally show confidence and status badge
+
+Implementation guidance
+- Keep the UI simple and farmer-friendly
+- Prefer plain labels like Disease, Confidence, Treatment, and Status
+- Avoid exposing model-oriented terminology in the main user flow
+- Treat the prediction output as a diagnosis summary plus next-step recommendation

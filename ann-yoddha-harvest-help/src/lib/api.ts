@@ -1,5 +1,17 @@
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
+export interface AuthUser {
+  id: number;
+  email: string;
+  role: string;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: AuthUser;
+}
+
 class ApiClient {
   private getToken(): string | null {
     return localStorage.getItem("auth_token");
@@ -36,87 +48,99 @@ class ApiClient {
     return res.json();
   }
 
-  // Auth
-  // Auth: handled by Supabase (signup/login in AuthContext). We only call getMe with the stored token.
-  async getMe() {
-    return this.request<{ user_id: string }>("/api/v1/auth/me");
+  async login(email: string, password: string) {
+    const body = new URLSearchParams();
+    body.append("username", email);
+    body.append("password", password);
+
+    const response = await fetch(`${API_BASE}/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: body.toString(),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: "Login failed" }));
+      throw new Error(error.detail || "Login failed");
+    }
+
+    return response.json() as Promise<AuthResponse>;
   }
 
-  // Farmer
+  async register(email: string, password: string) {
+    return this.request<AuthResponse>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+  }
+
+  async getMe() {
+    return this.request<AuthUser>("/auth/me");
+  }
+
   async getProfile() {
-    return this.request<{
-      farmer_id: string;
-      user_id: string;
-      name: string;
-      phone: string;
-      region: string;
-      language: string;
-    }>("/api/v1/farmers/me/profile");
+    const user = await this.getMe();
+    return {
+      farmer_id: String(user.id),
+      user_id: String(user.id),
+      name: user.email.split("@")[0],
+      phone: "",
+      region: "",
+      language: "en",
+      email: user.email,
+      role: user.role,
+    };
   }
 
   async getHistory(limit = 50) {
     return this.request<{
       history: Array<{
         id: number;
-        disease_detected: string | null;
-        severity: string | null;
-        confidence: number | null;
-        created_at: string | null;
+        disease_name: string;
+        confidence: number;
+        treatment: string;
+        image_url: string | null;
+        timestamp: string;
       }>;
       limit: number;
-    }>(`/api/v1/farmers/me/history?limit=${limit}`);
+    }>(`/history?limit=${limit}`);
   }
 
-  // Diagnosis
   async uploadDiagnosis(file: File) {
     const formData = new FormData();
     formData.append("image", file);
     return this.request<{
+      disease_name: string;
+      confidence: number;
+      treatment: string;
+      timestamp: string;
       status: string;
-      detections: Array<{
-        disease: string;
-        confidence: number;
-        severity?: string;
-        bbox?: [number, number, number, number];
-      }>;
-    }>("/api/v1/diagnosis/upload", {
+    }>("/predict", {
       method: "POST",
       body: formData,
     });
   }
 
-  // Recommendations
-  async getRecommendations(disease: string, severity?: string) {
-    const params = new URLSearchParams({ disease });
-    if (severity) params.append("severity", severity);
-    return this.request<{
-      disease: string;
-      treatments: Array<{
-        type: string;
-        name: string;
-        description: string;
-        dosage?: string;
-      }>;
-    }>(`/api/v1/recommendations/?${params}`);
-  }
-
-  // Analytics
   async getHotspots(region?: string) {
     const params = region ? `?region=${encodeURIComponent(region)}` : "";
-    return this.request<Array<{
+    const response = await this.request<{ hotspots?: Array<{
       region: string;
       disease: string;
       count: number;
       severity: string;
-    }>>(`/api/v1/analytics/hotspots${params}`);
+    }>; message?: string }>(`/api/v1/analytics/hotspots${params}`);
+    return response.hotspots || [];
   }
 
   async getPredictive() {
-    return this.request<Array<{
+    const response = await this.request<{ message?: string } | Array<{
       month: string;
       predicted_cases: number;
       disease: string;
     }>>("/api/v1/analytics/predictive");
+    return Array.isArray(response) ? response : [];
   }
 
   // Health

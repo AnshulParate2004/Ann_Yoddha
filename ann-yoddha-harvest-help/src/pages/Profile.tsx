@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,6 +14,7 @@ const fields = [
 ] as const;
 
 const Profile = () => {
+  const { user } = useAuth();
   const { data, isLoading } = useQuery({ queryKey: ["profile"], queryFn: () => api.getProfile() });
 
   return (
@@ -35,11 +37,15 @@ const Profile = () => {
                   {isLoading ? (
                     <Skeleton className="mt-1 h-5 w-40" />
                   ) : (
-                    <p className="font-medium">{(data as any)?.[f.key] || "—"}</p>
+                    <p className="font-medium">{(data as any)?.[f.key] || "-"}</p>
                   )}
                 </div>
               </div>
             ))}
+            <div className="border-t pt-4">
+              <p className="text-xs text-muted-foreground">Email</p>
+              {isLoading ? <Skeleton className="mt-1 h-5 w-52" /> : <p className="font-medium">{user?.email || "-"}</p>}
+            </div>
           </CardContent>
         </Card>
       </motion.div>

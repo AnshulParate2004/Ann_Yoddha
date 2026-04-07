@@ -10,13 +10,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Search, Calendar, TrendingUp, MapPin } from "lucide-react";
 import { format } from "date-fns";
 
-const severityColor: Record<string, string> = {
-  low: "bg-severity-low text-white",
-  medium: "bg-severity-medium text-white",
-  high: "bg-severity-high text-white",
-  critical: "bg-severity-critical text-white",
-};
-
 const container = {
   hidden: {},
   show: { transition: { staggerChildren: 0.08 } },
@@ -28,7 +21,7 @@ const item = {
 };
 
 const Dashboard = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const profile = useQuery({
     queryKey: ["profile"],
     queryFn: () => api.getProfile(),
@@ -49,7 +42,7 @@ const Dashboard = () => {
             {profile.isLoading ? (
               <Skeleton className="h-9 w-48" />
             ) : (
-              <>Welcome, {profile.data?.name || "Farmer"}</>
+              <>Welcome, {profile.data?.name || user?.email || "Farmer"}</>
             )}
           </h1>
           {profile.data?.region && (
@@ -98,9 +91,9 @@ const Dashboard = () => {
                 <Card className="h-full border-primary/10 transition-shadow hover:shadow-md">
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between">
-                      <CardTitle className="text-lg font-semibold">{d.disease_detected}</CardTitle>
-                      <Badge className={severityColor[d.severity?.toLowerCase()] || "bg-muted"}>
-                        {d.severity}
+                      <CardTitle className="text-lg font-semibold">{d.disease_name}</CardTitle>
+                      <Badge className={d.disease_name.toLowerCase() === "healthy" ? "bg-primary text-white" : "bg-muted"}>
+                        {d.disease_name.toLowerCase() === "healthy" ? "Healthy" : "Saved"}
                       </Badge>
                     </div>
                   </CardHeader>
@@ -111,8 +104,9 @@ const Dashboard = () => {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Calendar className="h-4 w-4" />
-                      {format(new Date(d.created_at), "MMM d, yyyy")}
+                      {format(new Date(d.timestamp), "MMM d, yyyy")}
                     </div>
+                    <p className="text-sm text-muted-foreground line-clamp-2">{d.treatment}</p>
                   </CardContent>
                 </Card>
               </motion.div>
