@@ -1,19 +1,51 @@
-"""
-SQLAlchemy/SQLModel definitions for farmers, diagnoses, analytics.
-"""
+"""SQLAlchemy models for Ann Yoddha auth, scan history, and legacy entities."""
 from datetime import datetime
-from typing import Optional
+
 from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
 
 
+class User(Base):
+    """Application user authenticated with local email/password credentials."""
+
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    role = Column(String(20), nullable=False, default="user")
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    scans = relationship(
+        "ScanHistory",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+
+class ScanHistory(Base):
+    """Cloud copy of each authenticated scan result."""
+
+    __tablename__ = "scan_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    disease_name = Column(String(100), nullable=False)
+    confidence = Column(Float, nullable=False)
+    treatment = Column(Text, nullable=False)
+    image_url = Column(String(512), nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    user = relationship("User", back_populates="scans")
+
+
 class Farmer(Base):
     __tablename__ = "farmers"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(String(36), unique=True, index=True, nullable=True)  # UUID from auth.users(id)
+    user_id = Column(String(36), unique=True, index=True, nullable=True)
     name = Column(String(255), nullable=False)
     phone = Column(String(20), unique=True, index=True, nullable=True)
     region = Column(String(100), nullable=True)

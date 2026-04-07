@@ -1,16 +1,14 @@
-# Ann Yoddha Backend (use uv: uv sync)
-# Dependencies are defined in pyproject.toml; this file is for pip fallback.
 fastapi>=0.109.0
 uvicorn[standard]>=0.27.0
 pydantic>=2.5.0
 pydantic-settings>=2.1.0
-python-jose[cryptography]>=3.3.0
 python-multipart>=0.0.6
+python-jose>=3.5.0
+passlib[bcrypt]>=1.7.4
 sqlalchemy>=2.0.0
 psycopg2-binary>=2.9.9
-
-# Optional: RAG, vector store, ML (uncomment as needed)
-# langchain>=0.1.0
-# chromadb>=0.4.0
-# pinecone-client>=3.0.0
-# ultralytics>=8.0.0
+# AI/ML Requirements
+ultralytics>=8.1.0
+torch>=2.2.0
+torchvision>=0.17.0
+pillow>=10.2.0

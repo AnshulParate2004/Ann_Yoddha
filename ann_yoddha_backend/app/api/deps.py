@@ -1,60 +1,28 @@
-"""
-FastAPI dependencies: JWT auth (Bearer token), optional auth.
-"""
+"""Common FastAPI dependencies shared across backend routes."""
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
+from fastapi import Depends
 
-from app.core.security import decode_access_token, get_user_from_supabase_token
-
-# Expect: Authorization: Bearer <jwt>
-security = HTTPBearer(auto_error=False)
+from app.auth import get_current_user, get_current_user_optional
+from app.db.models import User
 
 
-async def get_current_user_id(
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
+def get_current_user_id(
+    current_user: Annotated[User, Depends(get_current_user)],
 ) -> str:
-    """
-    Require valid JWT (Supabase or fallback). Returns user id (sub claim).
-    Use as: Depends(get_current_user_id) on protected routes.
-    """
-    if not credentials:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    token = credentials.credentials
-    # Prefer Supabase JWT payload, then fallback decode
-    payload = get_user_from_supabase_token(token)
-    if payload and "sub" in payload:
-        return str(payload["sub"])
-    user_id = decode_access_token(token)
-    if user_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return user_id
+    """Return the authenticated user's id as a string for legacy routes."""
+    return str(current_user.id)
 
 
-async def get_current_user_optional(
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
+def get_current_user_optional_id(
+    current_user: Annotated[User | None, Depends(get_current_user_optional)],
 ) -> str | None:
-    """
-    Optional auth: returns user id if valid Bearer token present, else None.
-    """
-    if not credentials:
+    """Return the authenticated user's id as a string when a bearer token exists."""
+    if current_user is None:
         return None
-    token = credentials.credentials
-    payload = get_user_from_supabase_token(token)
-    if payload and "sub" in payload:
-        return str(payload["sub"])
-    return decode_access_token(token)
+    return str(current_user.id)
 
 
-# Type alias for use in route signatures
+CurrentUser = Annotated[User, Depends(get_current_user)]
 CurrentUserId = Annotated[str, Depends(get_current_user_id)]
-OptionalUserId = Annotated[str | None, Depends(get_current_user_optional)]
+OptionalUserId = Annotated[str | None, Depends(get_current_user_optional_id)]

@@ -1,7 +1,4 @@
-"""
-PostgreSQL connection logic (optional). When using Supabase DB, data is accessed via
-Supabase client (get_supabase()); DATABASE_URL is not required.
-"""
+"""Database session helpers for local SQLite or production PostgreSQL."""
 from typing import Generator
 
 from sqlalchemy import create_engine
@@ -10,20 +7,18 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.core.config import settings
 from app.db.models import Base
 
-engine = None
-SessionLocal = None
 
-if settings.database_url:
-    engine = create_engine(settings.database_url, pool_pre_ping=True)
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+def _create_engine():
+    connect_args = {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
+    return create_engine(settings.database_url, pool_pre_ping=True, connect_args=connect_args)
+
+
+engine = _create_engine()
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def get_db() -> Generator[Session, None, None]:
-    """Dependency that yields a DB session. Only available when DATABASE_URL is set."""
-    if SessionLocal is None:
-        raise RuntimeError(
-            "DATABASE_URL is not set. This project uses Supabase DB via Supabase client."
-        )
+    """Yield a database session for request-scoped work."""
     db = SessionLocal()
     try:
         yield db
@@ -32,6 +27,5 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def init_db() -> None:
-    """Create tables if they do not exist (only when DATABASE_URL is set)."""
-    if engine is not None:
-        Base.metadata.create_all(bind=engine)
+    """Create tables on startup."""
+    Base.metadata.create_all(bind=engine)
