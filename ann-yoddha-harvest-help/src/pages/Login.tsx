@@ -50,6 +50,11 @@ const Login = () => {
             <CardDescription>Sign in to access your dashboard</CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="mb-4 rounded-xl border border-primary/15 bg-primary/5 p-4 text-sm">
+              <p className="font-medium text-foreground">Demo accounts</p>
+              <p className="mt-2 text-muted-foreground">Admin: `admin@annyoddha.com` / `AdminPassword123!`</p>
+              <p className="text-muted-foreground">Farmer: `farmer_01@annyoddha.com` / `FarmerPassword123!`</p>
+            </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>

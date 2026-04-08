@@ -1,16 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-} from 'react-native';
+} from "react-native";
+import { Leaf, LockKeyhole, Mail } from "lucide-react-native";
 
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from "../context/AuthContext";
+import { palette, radius, shadows, spacing, text } from "../theme/tokens";
 
 interface LoginScreenProps {
   onSwitchToRegister: () => void;
@@ -18,14 +21,20 @@ interface LoginScreenProps {
 
 export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
   const { login } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const useDemoCredentials = () => {
+    setEmail("farmer_01@annyoddha.com");
+    setPassword("FarmerPassword123!");
+    setError(null);
+  };
+
   const handleLogin = async () => {
     if (!email.trim() || !password) {
-      setError('Enter email and password.');
+      setError("Enter email and password.");
       return;
     }
 
@@ -35,49 +44,72 @@ export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
     try {
       await login(email.trim(), password);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      setError(err instanceof Error ? err.message : "Login failed");
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.container}
-    >
-      <View style={styles.card}>
-        <Text style={styles.title}>Ann Yoddha</Text>
-        <Text style={styles.subtitle}>Sign in to access diagnosis, history, and cloud sync.</Text>
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.container}>
+      <View style={styles.blobTop} />
+      <View style={styles.blobBottom} />
 
-        <TextInput
-          autoCapitalize="none"
-          keyboardType="email-address"
-          onChangeText={setEmail}
-          placeholder="Email"
-          placeholderTextColor="#7a7a7a"
-          style={styles.input}
-          value={email}
-        />
-        <TextInput
-          onChangeText={setPassword}
-          placeholder="Password"
-          placeholderTextColor="#7a7a7a"
-          secureTextEntry
-          style={styles.input}
-          value={password}
-        />
+      <ScrollView contentContainerStyle={styles.scrollWrap} keyboardShouldPersistTaps="handled">
+        <View style={styles.brandBlock}>
+          <View style={styles.brandIconWrap}>
+            <Leaf color={palette.primary} size={24} />
+          </View>
+          <Text style={styles.brandTitle}>Ann Yoddha</Text>
+          <Text style={styles.brandSub}>Professional wheat diagnosis and field-ready treatment guidance.</Text>
+        </View>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        <View style={styles.card}>
+          <Text style={styles.title}>Welcome back</Text>
+          <Text style={styles.subtitle}>Sign in to continue scanning, saving, and syncing crop diagnoses.</Text>
 
-        <TouchableOpacity disabled={submitting} onPress={handleLogin} style={styles.primaryButton}>
-          {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>Login</Text>}
-        </TouchableOpacity>
+          <View style={styles.inputWrap}>
+            <Mail color={palette.textMuted} size={16} />
+            <TextInput
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+              onChangeText={setEmail}
+              placeholder="Email address"
+              placeholderTextColor={palette.textMuted}
+              style={styles.input}
+              value={email}
+            />
+          </View>
 
-        <TouchableOpacity onPress={onSwitchToRegister} style={styles.secondaryButton}>
-          <Text style={styles.secondaryText}>Create a new account</Text>
-        </TouchableOpacity>
-      </View>
+          <View style={styles.inputWrap}>
+            <LockKeyhole color={palette.textMuted} size={16} />
+            <TextInput
+              autoCapitalize="none"
+              onChangeText={setPassword}
+              placeholder="Password"
+              placeholderTextColor={palette.textMuted}
+              secureTextEntry
+              style={styles.input}
+              value={password}
+            />
+          </View>
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          <TouchableOpacity disabled={submitting} onPress={handleLogin} style={styles.primaryButton}>
+            {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>Sign In</Text>}
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={useDemoCredentials} style={styles.demoButton}>
+            <Text style={styles.demoText}>Use Demo Farmer Account</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={onSwitchToRegister} style={styles.secondaryButton}>
+            <Text style={styles.secondaryText}>Create new account</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -85,63 +117,132 @@ export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    padding: 24,
-    backgroundColor: '#f4f7ef',
+    backgroundColor: palette.background,
+  },
+  blobTop: {
+    position: "absolute",
+    top: -90,
+    right: -40,
+    height: 230,
+    width: 230,
+    borderRadius: 120,
+    backgroundColor: "#d5e6d8",
+  },
+  blobBottom: {
+    position: "absolute",
+    bottom: -70,
+    left: -50,
+    height: 200,
+    width: 200,
+    borderRadius: 100,
+    backgroundColor: "#efe8d3",
+  },
+  scrollWrap: {
+    flexGrow: 1,
+    justifyContent: "center",
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xxl,
+    gap: spacing.xl,
+  },
+  brandBlock: {
+    gap: spacing.sm,
+  },
+  brandIconWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    height: 44,
+    width: 44,
+    borderRadius: radius.md,
+    backgroundColor: palette.primarySoft,
+  },
+  brandTitle: {
+    fontSize: text.hero,
+    color: palette.textPrimary,
+    fontWeight: "800",
+  },
+  brandSub: {
+    fontSize: text.body,
+    color: palette.textSecondary,
+    lineHeight: 22,
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 24,
-    gap: 14,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    backgroundColor: palette.surface,
+    borderRadius: radius.xl,
+    padding: spacing.xl,
+    borderWidth: 1,
+    borderColor: palette.border,
+    gap: spacing.md,
+    ...shadows.card,
   },
   title: {
-    fontSize: 30,
-    fontWeight: '700',
-    color: '#234d20',
+    fontSize: text.subtitle,
+    color: palette.textPrimary,
+    fontWeight: "800",
   },
   subtitle: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: '#50624f',
-    marginBottom: 8,
+    marginTop: -4,
+    fontSize: text.body,
+    lineHeight: 21,
+    color: palette.textSecondary,
+  },
+  inputWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: palette.border,
+    borderRadius: radius.md,
+    backgroundColor: palette.surfaceMuted,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 2,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#d2dbcf',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    flex: 1,
     fontSize: 16,
-    backgroundColor: '#fbfcf8',
+    paddingVertical: 12,
+    color: palette.textPrimary,
   },
   error: {
-    color: '#b3261e',
-    fontSize: 14,
+    color: palette.danger,
+    backgroundColor: palette.dangerSoft,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    fontSize: text.body,
+    fontWeight: "600",
   },
   primaryButton: {
-    backgroundColor: '#2e7d32',
-    borderRadius: 14,
-    alignItems: 'center',
-    paddingVertical: 14,
+    marginTop: spacing.xs,
+    backgroundColor: palette.primary,
+    borderRadius: radius.md,
+    alignItems: "center",
+    paddingVertical: spacing.md,
   },
   primaryText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
+  },
+  demoButton: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: "#cfdbc8",
+    backgroundColor: "#eff5ec",
+    alignItems: "center",
+    paddingVertical: spacing.md,
+  },
+  demoText: {
+    color: palette.primary,
+    fontWeight: "700",
+    fontSize: text.body,
   },
   secondaryButton: {
-    alignItems: 'center',
-    paddingVertical: 6,
+    alignItems: "center",
+    paddingVertical: spacing.xs,
   },
   secondaryText: {
-    color: '#2e7d32',
-    fontSize: 15,
-    fontWeight: '600',
+    color: palette.textSecondary,
+    fontSize: text.body,
+    fontWeight: "700",
   },
 });

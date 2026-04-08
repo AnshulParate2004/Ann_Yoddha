@@ -1,131 +1,155 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { AlertTriangle, CheckCircle2, ShieldAlert, TrendingUp } from "lucide-react";
+
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
+import { Badge } from "@/components/ui/badge";
 
-const severityColor: Record<string, string> = {
-  low: "bg-severity-low text-white",
-  medium: "bg-severity-medium text-white",
-  high: "bg-severity-high text-white",
-  critical: "bg-severity-critical text-white",
+type HistoryItem = {
+  id: number;
+  disease_name: string;
+  confidence: number;
+  treatment: string;
+  image_url: string | null;
+  timestamp: string;
 };
 
-const chartConfig = {
-  predicted_cases: { label: "Predicted Cases", color: "hsl(var(--primary))" },
-};
+function summarize(history: HistoryItem[]) {
+  const total = history.length;
+  const healthy = history.filter((item) => item.disease_name.toLowerCase() === "healthy").length;
+  const uncertain = history.filter((item) => item.disease_name.toLowerCase() === "uncertain").length;
+  const diseased = total - healthy - uncertain;
+  const avgConfidence = total > 0 ? Math.round((history.reduce((acc, item) => acc + item.confidence, 0) / total) * 100) : 0;
+
+  const counts = new Map<string, number>();
+  history
+    .filter((item) => item.disease_name.toLowerCase() !== "healthy" && item.disease_name.toLowerCase() !== "uncertain")
+    .forEach((item) => counts.set(item.disease_name, (counts.get(item.disease_name) ?? 0) + 1));
+
+  const topDiseases = Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+
+  return { total, healthy, uncertain, diseased, avgConfidence, topDiseases };
+}
 
 const Analytics = () => {
-  const [region, setRegion] = useState<string>("");
-
-  const hotspots = useQuery({
-    queryKey: ["hotspots", region],
-    queryFn: () => api.getHotspots(region || undefined),
+  const historyQuery = useQuery({
+    queryKey: ["analytics-history"],
+    queryFn: () => api.getHistory(100),
   });
 
-  const predictive = useQuery({
-    queryKey: ["predictive"],
-    queryFn: () => api.getPredictive(),
-  });
+  const history = historyQuery.data?.history ?? [];
+  const metrics = useMemo(() => summarize(history), [history]);
 
-  const regions = [...new Set(hotspots.data?.map((h) => h.region) || [])];
+  if (historyQuery.isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-10 w-48" />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, idx) => (
+            <Skeleton key={idx} className="h-28 rounded-xl" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (historyQuery.isError) {
+    return (
+      <div className="space-y-4">
+        <h1 className="font-display text-3xl font-bold">Analytics</h1>
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
+          Could not load analytics. Check backend connection and try again.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
-      <h1 className="font-display text-3xl font-bold">Analytics</h1>
+      <div className="space-y-3">
+        <h1 className="font-display text-3xl font-bold">Analytics</h1>
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-700" />
+            <p>
+              This page shows real history-based insights from your saved scans. Advanced hotspot forecasting is not enabled yet.
+            </p>
+          </div>
+        </div>
+      </div>
 
-      {/* Hotspots */}
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card className="border-primary/10">
-          <CardHeader className="flex-row items-center justify-between space-y-0">
-            <CardTitle>Disease Hotspots</CardTitle>
-            <Select value={region} onValueChange={setRegion}>
-              <SelectTrigger className="w-44">
-                <SelectValue placeholder="All Regions" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Regions</SelectItem>
-                {regions.map((r) => (
-                  <SelectItem key={r} value={r}>{r}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Total Scans</CardTitle>
           </CardHeader>
           <CardContent>
-            {hotspots.isLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="h-10 w-full" />
-                ))}
-              </div>
-            ) : !hotspots.data?.length ? (
-              <p className="py-8 text-center text-muted-foreground">No hotspot data available.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Region</TableHead>
-                      <TableHead>Disease</TableHead>
-                      <TableHead>Cases</TableHead>
-                      <TableHead>Severity</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {hotspots.data.map((h, i) => (
-                      <TableRow key={i}>
-                        <TableCell className="font-medium">{h.region}</TableCell>
-                        <TableCell>{h.disease}</TableCell>
-                        <TableCell>{h.count}</TableCell>
-                        <TableCell>
-                          <Badge className={severityColor[h.severity?.toLowerCase()] || "bg-muted"}>
-                            {h.severity}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+            <p className="text-3xl font-bold">{metrics.total}</p>
           </CardContent>
         </Card>
-      </motion.div>
 
-      {/* Predictive */}
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
         <Card className="border-primary/10">
-          <CardHeader>
-            <CardTitle>Predictive Analysis</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+              Healthy
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            {predictive.isLoading ? (
-              <Skeleton className="h-64 w-full" />
-            ) : !predictive.data?.length ? (
-              <p className="py-8 text-center text-muted-foreground">No predictive data available.</p>
-            ) : (
-              <ChartContainer config={chartConfig} className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={predictive.data}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis dataKey="month" className="text-xs" />
-                    <YAxis className="text-xs" />
-                    <Tooltip content={<ChartTooltipContent />} />
-                    <Legend />
-                    <Bar dataKey="predicted_cases" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartContainer>
-            )}
+            <p className="text-3xl font-bold">{metrics.healthy}</p>
           </CardContent>
         </Card>
-      </motion.div>
+
+        <Card className="border-primary/10">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ShieldAlert className="h-4 w-4 text-amber-600" />
+              Disease Detected
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">{metrics.diseased}</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-primary/10">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <TrendingUp className="h-4 w-4 text-primary" />
+              Avg Confidence
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">{metrics.avgConfidence}%</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="border-primary/10">
+        <CardHeader>
+          <CardTitle>Top Detected Diseases</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {metrics.topDiseases.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No disease-positive scans yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {metrics.topDiseases.map(([name, count]) => (
+                <div key={name} className="flex items-center justify-between rounded-lg border p-3">
+                  <p className="font-medium capitalize">{name}</p>
+                  <Badge variant="secondary">
+                    {count} scan{count === 1 ? "" : "s"}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

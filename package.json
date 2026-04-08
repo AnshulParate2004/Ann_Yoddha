@@ -2,6 +2,7 @@
   "name": "ann-yoddha",
   "private": true,
   "scripts": {
+    "dev:all": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\dev-all.ps1",
     "dev": "npm run dev --prefix ann-yoddha-harvest-help",
     "frontend": "npm run dev --prefix ann-yoddha-harvest-help",
     "build": "npm run build --prefix ann-yoddha-harvest-help"

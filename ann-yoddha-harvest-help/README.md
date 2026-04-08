@@ -1,19 +1,33 @@
-# Ann Yoddha (Harvest Help)
+# Ann Yoddha Web App
 
-Wheat disease detection for farmers. Sign up, upload crop/leaf images for diagnosis, get treatment recommendations, and view your history. Includes an analytics dashboard for regional hotspots.
+Web dashboard for diagnosis upload, history, and analytics.
 
 ## Stack
 
-- **Vite** · **React** · **TypeScript**
-- **Supabase** (Auth, Storage)
-- **shadcn/ui** · **Tailwind CSS**
+- Vite
+- React
+- TypeScript
+- shadcn/ui
+
+## Environment
+
+Copy `.env.example` to `.env` and set:
+
+```dotenv
+VITE_API_BASE=http://172.16.204.191:8000
+```
+
+Optional legacy Supabase keys can remain in `.env`, but the current auth flow uses backend JWT endpoints.
 
 ## Run
 
 ```sh
-npm i
-cp .env.example .env   # add your VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+npm install
 npm run dev
 ```
 
-Backend: [ann_yoddha_backend](../ann_yoddha_backend) (FastAPI). Set `VITE_API_BASE` in `.env` if the API is not at `http://localhost:8000`.
+For LAN access (phone/browser on same Wi-Fi):
+
+```sh
+npm run dev -- --host 0.0.0.0 --port 5173
+```

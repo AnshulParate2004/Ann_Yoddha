@@ -1,42 +1,55 @@
 # Ann Yoddha
 
-# Problem Statement
+## Problem Statement
 
-Farmers often cannot identify wheat crop diseases early. Because of this:
+Farmers often cannot identify wheat crop diseases early. This causes:
 
-Crop yield decreases
+- crop yield loss
+- incorrect pesticide use
+- faster disease spread
 
-Wrong pesticides are used
+Ann Yoddha is a full-stack crop diagnosis system where farmers upload crop images, receive AI-based disease detection, and get treatment guidance.
 
-Disease spreads quickly
+## Architecture
 
-The solution is a web application where farmers upload crop images, and an AI model detects the disease and suggests treatment.
+Farmer (Mobile/Web) -> React clients -> FastAPI backend -> database and model inference
 
-# Architecture
+## What It Is Made Of
 
-Farmer (Mobile/Web)
-        │
-        ▼
-   React Web App
-        │
-        ▼
-    FastAPI Backend
-        │
-        ├── Image Processing
-        ├── ML Model (Disease Detection)
-        └── Recommendation Engine
-        │
-        ▼
-   Database (Store Results)
+- Frontend web app: `ann-yoddha-harvest-help` (Vite, React, TypeScript, shadcn/ui)
+- Mobile app: `ann-yoddha-mobile` (Expo, React Native, offline-first sync)
+- Backend: `ann_yoddha_backend` (FastAPI, JWT auth, Keras inference)
 
-## What it’s made of
+## Run (Quick)
 
-- **Frontend:** [ann-yoddha-harvest-help](ann-yoddha-harvest-help) — Vite, React, TypeScript, Supabase, shadcn/ui
-- **Backend:** [ann_yoddha_backend](ann_yoddha_backend) — FastAPI, Supabase (Auth, DB, Storage)
+- Backend: `cd ann_yoddha_backend && uv sync --dev && uv run uvicorn app.main:app --reload`
+- Web: `cd ann-yoddha-harvest-help && npm i && npm run dev`
+- Mobile: `cd ann-yoddha-mobile && npm i && npx expo start`
 
-## Run
+## One Command Startup (Backend + Web + Mobile)
 
-- **Backend:** `cd ann_yoddha_backend && uv sync --dev && uv run uvicorn app.main:app --reload`
-- **Frontend:** `cd ann-yoddha-harvest-help && npm i && npm run dev`
+From repo root:
 
-See each folder’s README for env and details.
+```powershell
+npm run dev:all
+```
+
+This opens three PowerShell windows and starts:
+
+- backend on `0.0.0.0:8000`
+- web app on `0.0.0.0:5173`
+- mobile app with Expo LAN mode
+
+## Local LAN + Phone Testing
+
+Use [README_LOCAL_DEPLOYMENT.md](README_LOCAL_DEPLOYMENT.md) for the complete local deployment flow, including:
+
+- backend on LAN host
+- web setup with `VITE_API_BASE`
+- mobile setup with `EXPO_PUBLIC_BACKEND_URL`
+- real-phone validation checklist
+
+Current LAN values in this workspace:
+
+- Backend base URL: `http://172.16.204.191:8000`
+- Web URL on phone: `http://172.16.204.191:5173`
