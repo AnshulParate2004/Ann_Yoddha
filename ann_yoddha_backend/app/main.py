@@ -1,5 +1,6 @@
 """Primary FastAPI application for the Ann Yoddha SaaS backend."""
 
+import asyncio
 from datetime import datetime
 from typing import Any
 import urllib.request
@@ -30,6 +31,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+async def ping_render():
+    while True:
+        try:
+            await asyncio.sleep(180)  # Wait 3 minutes
+            await asyncio.to_thread(urllib.request.urlopen, "https://ann-yoddha.onrender.com/health")
+        except Exception:
+            pass
+
+@app.on_event("startup")
+async def start_keepalive():
+    asyncio.create_task(ping_render())
 
 app.include_router(api_router, prefix="/api/v1")
 
