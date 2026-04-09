@@ -4,6 +4,9 @@ export interface AuthUser {
   id: number;
   email: string;
   role: string;
+  name?: string;
+  phone?: string;
+  region?: string;
 }
 
 export interface AuthResponse {
@@ -69,10 +72,10 @@ class ApiClient {
     return response.json() as Promise<AuthResponse>;
   }
 
-  async register(email: string, password: string) {
+  async register(email: string, password: string, name?: string) {
     return this.request<AuthResponse>("/auth/register", {
       method: "POST",
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, name }),
     });
   }
 
@@ -85,9 +88,9 @@ class ApiClient {
     return {
       farmer_id: String(user.id),
       user_id: String(user.id),
-      name: user.email.split("@")[0],
-      phone: "",
-      region: "",
+      name: user.name || user.email.split("@")[0],
+      phone: user.phone || "-",
+      region: user.region || "-",
       language: "en",
       email: user.email,
       role: user.role,
@@ -125,12 +128,14 @@ class ApiClient {
 
   async getHotspots(region?: string) {
     const params = region ? `?region=${encodeURIComponent(region)}` : "";
-    const response = await this.request<{ hotspots?: Array<{
-      region: string;
-      disease: string;
-      count: number;
-      severity: string;
-    }>; message?: string }>(`/api/v1/analytics/hotspots${params}`);
+    const response = await this.request<{
+      hotspots?: Array<{
+        region: string;
+        disease: string;
+        count: number;
+        severity: string;
+      }>; message?: string
+    }>(`/api/v1/analytics/hotspots${params}`);
     return response.hotspots || [];
   }
 
@@ -143,9 +148,55 @@ class ApiClient {
     return Array.isArray(response) ? response : [];
   }
 
+  async streamRecommendation(disease: string) {
+    const token = this.getToken();
+    const headers: HeadersInit = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    const response = await fetch(`${API_BASE}/api/v1/recommendations/stream?disease=${encodeURIComponent(disease)}`, {
+      method: "GET",
+      headers,
+    });
+    if (!response.ok) {
+      throw new Error(`Streaming failed: ${response.status}`);
+    }
+    return response;
+  }
+
+  async streamChat(query: string, sessionId: string) {
+    const token = this.getToken();
+    const headers: HeadersInit = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const response = await fetch(
+      `${API_BASE}/api/v1/recommendations/chat/stream?query=${encodeURIComponent(query)}&session_id=${encodeURIComponent(sessionId)}`,
+      { method: "GET", headers }
+    );
+    if (!response.ok) throw new Error(`Streaming failed: ${response.status}`);
+    return response;
+  }
+
+  async getChatSessions() {
+    return this.request<{ sessions: { session_id: string; first_message: string; created_at: string; message_count: number }[] }>("/api/v1/recommendations/chat/sessions");
+  }
+
+  async getSessionMessages(sessionId: string) {
+    return this.request<{ messages: { id: string; role: string; content: string; created_at: string }[] }>(`/api/v1/recommendations/chat/sessions/${encodeURIComponent(sessionId)}/messages`);
+  }
+
+  async getChatHistory(sessionId?: string) {
+    const qs = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : "";
+    return this.request<{ history: { id: string; role: string; content: string; created_at: string }[] }>(`/api/v1/recommendations/chat/history${qs}`);
+  }
+
   // Health
   async health() {
     return this.request<{ status: string }>("/health");
+  }
+
+  // Azure Speech
+  async getSpeechToken() {
+    return this.request<{ token: string; region: string }>("/api/v1/speech/token");
   }
 }
 

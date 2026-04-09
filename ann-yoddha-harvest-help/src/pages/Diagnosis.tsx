@@ -23,13 +23,64 @@ const Diagnosis = () => {
     timestamp: string;
     status: string;
   } | null>(null);
+  const [streamedTreatment, setStreamedTreatment] = useState<string | null>(null);
+  const [isStreaming, setIsStreaming] = useState(false);
   const { toast } = useToast();
+
+  const startStreaming = async (disease: string) => {
+    setIsStreaming(true);
+    setStreamedTreatment("Connecting to agronomy expert...");
+    try {
+      const response = await api.streamRecommendation(disease);
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder("utf-8");
+      if (!reader) return;
+
+      let done = false;
+      while (!done) {
+        const { value, done: readerDone } = await reader.read();
+        done = readerDone;
+        if (value) {
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split("\n");
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const dataStr = line.slice(6);
+              if (dataStr.trim()) {
+                try {
+                  const data = JSON.parse(dataStr);
+                  if (data.event === "status") {
+                    setStreamedTreatment(`⏳ ${data.message}`);
+                  } else if (data.event === "final_result") {
+                    setStreamedTreatment(data.data.answer);
+                  } else if (data.event === "error") {
+                    setStreamedTreatment(`❌ Error: ${data.message}`);
+                  }
+                } catch (e) {
+                  // Ignore JSON parse errors for incomplete chunks
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      setStreamedTreatment(null);
+    } finally {
+      setIsStreaming(false);
+    }
+  };
 
   const upload = useMutation({
     mutationFn: (f: File) => api.uploadDiagnosis(f),
     onSuccess: (data) => {
       setResult(data);
       setStep("result");
+      setStreamedTreatment(null);
+      if (data.disease_name.toLowerCase() !== "healthy" && data.disease_name.toLowerCase() !== "uncertain") {
+        startStreaming(data.disease_name);
+      }
     },
     onError: (err: any) => {
       toast({ title: "Analysis failed", description: err.message, variant: "destructive" });
@@ -53,6 +104,8 @@ const Diagnosis = () => {
     setFile(null);
     setPreview(null);
     setResult(null);
+    setStreamedTreatment(null);
+    setIsStreaming(false);
   };
 
   return (
@@ -151,8 +204,11 @@ const Diagnosis = () => {
                 </div>
 
                 <div className="rounded-lg border bg-muted/30 p-4">
-                  <p className="text-sm font-medium text-muted-foreground">Treatment</p>
-                  <p className="mt-1">{result.treatment}</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-muted-foreground">Expert Recommendation</p>
+                    {isStreaming && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                  </div>
+                  <p className="mt-1 whitespace-pre-wrap">{streamedTreatment || result.treatment}</p>
                 </div>
 
                 {result.disease_name === "healthy" && (

@@ -29,7 +29,7 @@ CLASS_NAMES = [
 ]
 
 UNCERTAIN_LABEL = "uncertain"
-CONFIDENCE_THRESHOLD = 0.5
+CONFIDENCE_THRESHOLD = 0.10
 IMAGE_SIZE = (224, 224)
 MODEL_PATH = Path(__file__).resolve().parents[2] / "models" / "wheat_model.keras"
 

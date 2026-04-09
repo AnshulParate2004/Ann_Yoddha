@@ -12,19 +12,25 @@ import {
   Menu,
   X,
   Leaf,
+  MessageSquare,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/diagnosis", label: "Diagnosis", icon: Search },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
+  { to: "/chat", label: "Chatbot", icon: MessageSquare },
   { to: "/profile", label: "Profile", icon: User },
 ];
 
 export function AppLayout() {
   const { logout } = useAuth();
   const location = useLocation();
+  const { theme, toggleTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -54,6 +60,15 @@ export function AppLayout() {
                 {item.label}
               </Link>
             ))}
+            {/* Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              {theme === "dark" ? "Light" : "Dark"}
+            </button>
             <Button variant="ghost" size="sm" onClick={logout} className="ml-2 text-muted-foreground">
               <LogOut className="mr-1 h-4 w-4" />
               Sign Out
