@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Calendar, TrendingUp, MapPin } from "lucide-react";
+import { Search, Calendar, MapPin } from "lucide-react";
 import { format } from "date-fns";
 
 const container = {
@@ -108,10 +108,6 @@ const Dashboard = () => {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <TrendingUp className="h-4 w-4" />
-                      Confidence: {(d.confidence * 100).toFixed(1)}%
-                    </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Calendar className="h-4 w-4" />
                       {format(new Date(d.timestamp), "MMM d, yyyy")}

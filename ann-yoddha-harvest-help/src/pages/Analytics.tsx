@@ -203,12 +203,11 @@ const Analytics = () => {
       </div>
 
       {/* Top Level Metric Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         {[
           { label: "Total Scans", value: metrics.total, icon: Calendar, color: "text-blue-600", bg: "bg-blue-50" },
           { label: "Healthy Rate", value: `${Math.round((metrics.healthy / (metrics.total || 1)) * 100)}%`, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: "Disease Alerts", value: metrics.diseased, icon: ShieldAlert, color: "text-red-600", bg: "bg-red-50" },
-          { label: "Avg Confidence", value: `${metrics.avgConfidence}%`, icon: TrendingUp, color: "text-amber-600", bg: "bg-amber-50" }
+          { label: "Disease Alerts", value: metrics.diseased, icon: ShieldAlert, color: "text-red-600", bg: "bg-red-50" }
         ].map((m, i) => (
           <motion.div
             key={m.label}

@@ -5,7 +5,6 @@ import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Upload, Camera, Loader2, ArrowLeft, RotateCcw, ShieldCheck, CloudOff, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -200,14 +199,6 @@ const Diagnosis = () => {
                 </div>
               </CardHeader>
               <CardContent className="space-y-5">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Confidence</span>
-                    <span className="font-semibold">{(result.confidence * 100).toFixed(1)}%</span>
-                  </div>
-                  <Progress value={result.confidence * 100} className="h-2" />
-                </div>
-
                 <div className="rounded-lg border bg-muted/30 p-4">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium text-muted-foreground">Expert Recommendation</p>
