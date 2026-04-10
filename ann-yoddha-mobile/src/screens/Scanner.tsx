@@ -1,40 +1,29 @@
-import React, { useState, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, ActivityIndicator, Image, ScrollView } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useAuth } from '../context/AuthContext';
-import { uploadImage, streamRecommendation } from '../api/predict';
-import { saveScan } from '../database/sqlite';
-import { palette, radius, text, spacing } from '../theme/tokens';
-import { ShieldAlert, Cloud, CloudOff, RefreshCcw, CheckCircle2, Loader } from 'lucide-react-native';
+import React, { useRef, useState } from "react";
+import { Alert, ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
+import { CameraView, useCameraPermissions } from "expo-camera";
+import { CheckCircle2, Cloud, CloudOff, RefreshCcw, ScanSearch, Sparkles } from "lucide-react-native";
 
-type Step = 'camera' | 'result';
+import { useAuth } from "../context/AuthContext";
+import { uploadImage, streamRecommendation } from "../api/predict";
+import { saveScan } from "../database/sqlite";
+import { palette, radius, spacing, text } from "../theme/tokens";
+import { ActionButton, AppScreen, GradientCard, SectionHeading, StatusChip, SurfaceCard } from "../components/AppSurface";
+
+type Step = "camera" | "result";
 
 export default function Scanner() {
   const { token } = useAuth();
   const [permission, requestPermission] = useCameraPermissions();
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState<Step>('camera');
+  const [step, setStep] = useState<Step>("camera");
   const [preview, setPreview] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
   const [streamedRecommendation, setStreamedRecommendation] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const cameraRef = useRef<any>(null);
 
-  if (!permission?.granted) {
-    return (
-      <View style={styles.center}>
-        <Text style={{ marginBottom: 20, textAlign: 'center', color: palette.textPrimary }}>
-          Camera access is needed to detect crop diseases.
-        </Text>
-        <TouchableOpacity onPress={requestPermission} style={styles.btnPrimary}>
-          <Text style={{ color: 'white', fontWeight: 'bold' }}>Grant Permission</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
   const reset = () => {
-    setStep('camera');
+    setStep("camera");
     setPreview(null);
     setResult(null);
     setStreamedRecommendation(null);
@@ -44,21 +33,24 @@ export default function Scanner() {
   const capture = async () => {
     if (!cameraRef.current || loading) return;
     if (!token) {
-      alert("Please sign in before scanning."); // Changed to lowercase alert for simplicity if Alert isn't imported
+      Alert.alert("Sign in required", "Please sign in before scanning.");
       return;
     }
+
     setLoading(true);
 
     try {
       const photo = await cameraRef.current.takePictureAsync();
       setPreview(photo.uri);
-      
+
       const res = await uploadImage(photo.uri, token);
       const fallbackTimestamp = new Date().toISOString();
       const savedTimestamp = res?.timestamp ?? fallbackTimestamp;
-      const diseaseName = res?.disease_name ?? 'uncertain';
+      const diseaseName = res?.disease_name ?? "uncertain";
       const confidence = res?.confidence ?? 0;
-      const treatment = res?.treatment ?? 'Retake the image in better lighting and focus on one leaf or wheat head. Sync later when online.';
+      const treatment =
+        res?.treatment ??
+        "Retake the image in better lighting and focus on one leaf or wheat head. Sync later when online.";
 
       await saveScan({
         disease_name: diseaseName,
@@ -66,143 +58,329 @@ export default function Scanner() {
         treatment,
         image_uri: photo.uri,
         timestamp: savedTimestamp,
-        is_synced: res ? 1 : 0
+        is_synced: res ? 1 : 0,
       });
 
       setResult({
         disease_name: diseaseName,
         confidence,
         treatment,
-        status: res ? 'saved_to_cloud' : 'saved_offline',
-        timestamp: savedTimestamp
+        status: res ? "saved_to_cloud" : "saved_offline",
+        timestamp: savedTimestamp,
       });
-      setStep('result');
+      setStep("result");
 
-      // Stream AI expert recommendation for non-healthy/uncertain results — mirrors web Diagnosis.tsx
-      if (diseaseName.toLowerCase() !== 'healthy' && diseaseName.toLowerCase() !== 'uncertain') {
+      if (diseaseName.toLowerCase() !== "healthy" && diseaseName.toLowerCase() !== "uncertain") {
         setIsStreaming(true);
-        setStreamedRecommendation('Connecting to agronomy expert...');
-        streamRecommendation(
-          diseaseName,
-          token!,
-          (status) => setStreamedRecommendation(status)
-        ).then((answer) => {
-          if (answer) setStreamedRecommendation(answer);
-        }).finally(() => setIsStreaming(false));
+        setStreamedRecommendation("Connecting to agronomy expert...");
+        streamRecommendation(diseaseName, token, (status) => setStreamedRecommendation(status))
+          .then((answer) => {
+            if (answer) setStreamedRecommendation(answer);
+          })
+          .finally(() => setIsStreaming(false));
       }
-    } catch (err) {
-      console.error("Capture or Save Error:", err);
-      alert("Could not process the scan.");
+    } catch (error) {
+      console.error("Capture or Save Error:", error);
+      Alert.alert("Scan failed", "Could not process the scan.");
     } finally {
       setLoading(false);
     }
   };
 
-  if (step === 'result' && result) {
+  if (!permission?.granted) {
     return (
-      <ScrollView style={styles.containerBox} contentContainerStyle={{ padding: 20 }}>
-        <Text style={styles.headerTitle}>Diagnosis Result</Text>
-        
-        {preview && (
-          <Image source={{ uri: preview }} style={styles.previewImage} />
-        )}
+      <AppScreen contentContainerStyle={styles.permissionContent}>
+        <GradientCard>
+          <Text style={styles.permissionEyebrow}>Camera access</Text>
+          <Text style={styles.permissionTitle}>Enable crop scanning</Text>
+          <Text style={styles.permissionText}>Camera access is required to capture leaves and wheat heads for diagnosis.</Text>
+        </GradientCard>
+        <SurfaceCard>
+          <ActionButton label="Grant permission" onPress={requestPermission} />
+        </SurfaceCard>
+      </AppScreen>
+    );
+  }
 
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.diseaseTitle}>
-              {result.disease_name === 'uncertain' ? 'Uncertain' : result.disease_name}
-            </Text>
-            <View style={[styles.badge, result.status === 'saved_to_cloud' ? styles.badgeSuccess : styles.badgeWarning]}>
-              <Text style={[styles.badgeText, result.status === 'saved_to_cloud' ? {color: palette.success} : {color: palette.warning}]}>
-                {result.status === 'saved_to_cloud' ? "Cloud Saved" : "Offline Pending"}
-              </Text>
+  if (step === "result" && result) {
+    const isHealthy = result.disease_name === "healthy";
+    const isUncertain = result.disease_name === "uncertain";
+    const isSynced = result.status === "saved_to_cloud";
+
+    return (
+      <AppScreen>
+        <SectionHeading
+          eyebrow="Diagnosis"
+          title="Scan result"
+          subtitle="A simplified result card with the diagnosis, confidence, and next action."
+        />
+
+        {preview ? <Image source={{ uri: preview }} style={styles.previewImage} /> : null}
+
+        <SurfaceCard>
+          <View style={styles.resultHeader}>
+            <View style={styles.resultTitleWrap}>
+              <Text style={styles.resultTitle}>{isUncertain ? "Uncertain" : result.disease_name}</Text>
+              <Text style={styles.resultMeta}>Confidence {(result.confidence * 100).toFixed(1)}%</Text>
             </View>
+            <StatusChip label={isSynced ? "Saved to cloud" : "Offline pending"} tone={isSynced ? "success" : "warning"} />
           </View>
 
-          <View style={styles.confidenceRow}>
-            <Text style={{color: palette.textSecondary, fontSize: 13}}>Confidence</Text>
-            <Text style={{fontWeight: '700', color: palette.textPrimary}}>{(result.confidence * 100).toFixed(1)}%</Text>
-          </View>
-          <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFill, { width: `${result.confidence * 100}%` }]} />
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${Math.max(result.confidence * 100, 6)}%` }]} />
           </View>
 
-          <View style={styles.treatmentBox}>
-            <View style={styles.treatmentTitleRow}>
-              <Text style={styles.treatmentTitle}>Expert Recommendation</Text>
-              {isStreaming && <ActivityIndicator size="small" color={palette.textMuted} />}
+          <SurfaceCard style={styles.recommendationCard}>
+            <View style={styles.recommendationHeader}>
+              <View style={styles.recommendationTitleWrap}>
+                <Sparkles color={palette.primary} size={16} />
+                <Text style={styles.recommendationTitle}>Expert recommendation</Text>
+              </View>
+              {isStreaming ? <ActivityIndicator size="small" color={palette.textMuted} /> : null}
             </View>
-            <Text style={styles.treatmentText}>{streamedRecommendation || result.treatment}</Text>
-          </View>
+            <Text style={styles.recommendationText}>{streamedRecommendation || result.treatment}</Text>
+          </SurfaceCard>
 
-          {result.disease_name === 'healthy' && (
-            <View style={styles.healthyBox}>
+          {isHealthy ? (
+            <View style={[styles.callout, styles.calloutSuccess]}>
               <CheckCircle2 color={palette.success} size={18} />
-              <Text style={styles.healthyText}>No urgent treatment needed. Continue scouting and preventive care.</Text>
+              <Text style={styles.calloutTextSuccess}>No urgent treatment needed. Continue scouting and preventive care.</Text>
             </View>
-          )}
-          {result.disease_name === 'uncertain' && (
-            <View style={styles.uncertainBox}>
-              <CloudOff color={palette.warning} size={18} />
-              <Text style={styles.uncertainText}>Retake the image in better lighting and focus on one leaf or wheat head before acting on this result.</Text>
-            </View>
-          )}
-        </View>
+          ) : null}
 
-        <TouchableOpacity style={styles.btnOutline} onPress={reset}>
-          <RefreshCcw color={palette.primary} size={18} />
-          <Text style={styles.btnOutlineText}>Scan Again</Text>
-        </TouchableOpacity>
-      </ScrollView>
+          {isUncertain ? (
+            <View style={[styles.callout, styles.calloutWarning]}>
+              <CloudOff color={palette.warning} size={18} />
+              <Text style={styles.calloutTextWarning}>Retake the image in better lighting and focus on one leaf or wheat head before acting on this result.</Text>
+            </View>
+          ) : null}
+
+          <View style={styles.resultFooter}>
+            {isSynced ? <Cloud color={palette.success} size={14} /> : <CloudOff color={palette.warning} size={14} />}
+            <Text style={styles.resultFooterText}>{new Date(result.timestamp).toLocaleString()}</Text>
+          </View>
+        </SurfaceCard>
+
+        <ActionButton
+          label="Scan again"
+          onPress={reset}
+          tone="secondary"
+          icon={<RefreshCcw color={palette.primary} size={18} />}
+        />
+      </AppScreen>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <CameraView style={StyleSheet.absoluteFillObject} ref={cameraRef} facing="back" mode="picture" />
-      <View style={styles.overlay}>
-        {loading ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator size="large" color="#4CAF50" />
-            <Text style={styles.loadingText}>Analyzing crop image...</Text>
+    <AppScreen>
+      <GradientCard>
+        <Text style={styles.permissionEyebrow}>Capture</Text>
+        <Text style={styles.permissionTitle}>Scan a crop image</Text>
+        <Text style={styles.permissionText}>Frame one leaf or wheat head clearly. Better light and tighter focus improve the result.</Text>
+      </GradientCard>
+
+      <SurfaceCard style={styles.cameraCard}>
+        <CameraView ref={cameraRef} style={styles.cameraPreview} facing="back" mode="picture" />
+        <View style={styles.cameraOverlay}>
+          <View style={styles.focusFrame} />
+        </View>
+      </SurfaceCard>
+
+      <SurfaceCard>
+        <SectionHeading
+          eyebrow="Tips"
+          title="Before you capture"
+          subtitle="Keep it to a single surface, avoid blur, and hold steady for a second before pressing scan."
+        />
+        <View style={styles.tipList}>
+          <View style={styles.tipRow}>
+            <ScanSearch color={palette.primary} size={18} />
+            <Text style={styles.tipText}>Fill most of the frame with the affected area.</Text>
           </View>
-        ) : (
-          <TouchableOpacity activeOpacity={0.7} onPress={capture} style={styles.shutter} />
-        )}
-      </View>
-    </View>
+          <View style={styles.tipRow}>
+            <Sparkles color={palette.accent} size={18} />
+            <Text style={styles.tipText}>Natural daylight usually produces the cleanest diagnosis.</Text>
+          </View>
+        </View>
+      </SurfaceCard>
+
+      <ActionButton
+        label={loading ? "Analyzing crop image..." : "Capture and analyze"}
+        onPress={capture}
+        disabled={loading}
+        icon={loading ? <ActivityIndicator color={palette.white} /> : <ScanSearch color={palette.white} size={18} />}
+      />
+    </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: 'black' },
-  containerBox: { flex: 1, backgroundColor: palette.background },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  headerTitle: { fontSize: 24, fontWeight: '800', color: palette.textPrimary, marginBottom: 16 },
-  previewImage: { width: '100%', height: 250, borderRadius: radius.md, marginBottom: 16, backgroundColor: '#ddd' },
-  card: { backgroundColor: palette.surface, padding: 16, borderRadius: radius.md, borderWidth: 1, borderColor: palette.primarySoft, marginBottom: 20 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  diseaseTitle: { fontSize: 20, fontWeight: '800', color: palette.textPrimary, textTransform: 'capitalize' },
-  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  badgeSuccess: { backgroundColor: palette.successSoft },
-  badgeWarning: { backgroundColor: palette.warningSoft },
-  badgeText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
-  confidenceRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  progressBarBg: { height: 6, backgroundColor: palette.border, borderRadius: 3, marginBottom: 20 },
-  progressBarFill: { height: 6, backgroundColor: palette.primary, borderRadius: 3 },
-  treatmentBox: { backgroundColor: palette.surfaceMuted, padding: 12, borderRadius: radius.sm, borderWidth: 1, borderColor: palette.border, marginBottom: 16 },
-  treatmentTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  treatmentTitle: { fontSize: 12, fontWeight: '700', color: palette.textSecondary, textTransform: 'uppercase' },
-  treatmentText: { fontSize: 14, color: palette.textPrimary, lineHeight: 22 },
-  healthyBox: { flexDirection: 'row', gap: 10, backgroundColor: palette.successSoft, padding: 12, borderRadius: radius.sm, alignItems: 'center' },
-  healthyText: { color: palette.success, fontSize: 13, flex: 1, fontWeight: '500' },
-  uncertainBox: { flexDirection: 'row', gap: 10, backgroundColor: palette.warningSoft, padding: 12, borderRadius: radius.sm, alignItems: 'center' },
-  uncertainText: { color: palette.warning, fontSize: 13, flex: 1, fontWeight: '500' },
-  btnOutline: { flexDirection: 'row', gap: 8, padding: 16, borderRadius: radius.md, borderWidth: 1, borderColor: palette.primary, justifyContent: 'center', alignItems: 'center' },
-  btnOutlineText: { color: palette.primary, fontWeight: '700', fontSize: 16 },
-  btnPrimary: { backgroundColor: palette.primary, padding: 15, borderRadius: 10 },
-  overlay: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 150, justifyContent: 'center', alignItems: 'center' },
-  loadingBox: { alignItems: 'center', gap: 12, backgroundColor: 'rgba(0,0,0,0.65)', paddingHorizontal: 20, paddingVertical: 16, borderRadius: 16 },
-  loadingText: { color: '#fff', fontWeight: '600' },
-  shutter: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'white', borderWidth: 6, borderColor: '#4CAF50' }
+  permissionContent: {
+    justifyContent: "center",
+    minHeight: "100%",
+  },
+  permissionEyebrow: {
+    color: "#dfeadf",
+    fontSize: text.caption,
+    fontWeight: "800",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  permissionTitle: {
+    marginTop: spacing.xs,
+    color: palette.white,
+    fontSize: text.title,
+    fontWeight: "900",
+  },
+  permissionText: {
+    marginTop: spacing.sm,
+    color: "#e7f0ea",
+    fontSize: text.body,
+    lineHeight: 22,
+  },
+  cameraCard: {
+    padding: spacing.sm,
+    overflow: "hidden",
+  },
+  cameraPreview: {
+    height: 340,
+    borderRadius: radius.lg,
+    overflow: "hidden",
+  },
+  cameraOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    pointerEvents: "none",
+  },
+  focusFrame: {
+    width: "62%",
+    aspectRatio: 1,
+    borderRadius: 26,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.9)",
+    backgroundColor: "rgba(255,255,255,0.03)",
+  },
+  tipList: {
+    marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  tipRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  tipText: {
+    flex: 1,
+    color: palette.textSecondary,
+    fontSize: text.body,
+    lineHeight: 21,
+  },
+  previewImage: {
+    width: "100%",
+    height: 250,
+    borderRadius: radius.xl,
+    backgroundColor: "#d9d9d9",
+  },
+  resultHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: spacing.md,
+  },
+  resultTitleWrap: {
+    flex: 1,
+  },
+  resultTitle: {
+    color: palette.textPrimary,
+    fontSize: 28,
+    lineHeight: 32,
+    fontWeight: "900",
+    textTransform: "capitalize",
+  },
+  resultMeta: {
+    marginTop: 4,
+    color: palette.textSecondary,
+    fontSize: text.body,
+    fontWeight: "700",
+  },
+  progressTrack: {
+    marginTop: spacing.md,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: palette.surfaceMuted,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: palette.primary,
+  },
+  recommendationCard: {
+    marginTop: spacing.lg,
+    backgroundColor: palette.surfaceMuted,
+    borderColor: palette.border,
+    padding: spacing.md,
+  },
+  recommendationHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
+  recommendationTitleWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  recommendationTitle: {
+    color: palette.textPrimary,
+    fontSize: text.caption,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  recommendationText: {
+    marginTop: spacing.sm,
+    color: palette.textPrimary,
+    fontSize: text.body,
+    lineHeight: 22,
+  },
+  callout: {
+    marginTop: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    borderRadius: radius.md,
+    padding: spacing.md,
+  },
+  calloutSuccess: {
+    backgroundColor: palette.successSoft,
+  },
+  calloutWarning: {
+    backgroundColor: palette.warningSoft,
+  },
+  calloutTextSuccess: {
+    flex: 1,
+    color: palette.success,
+    fontSize: text.body,
+    fontWeight: "600",
+  },
+  calloutTextWarning: {
+    flex: 1,
+    color: palette.warning,
+    fontSize: text.body,
+    fontWeight: "600",
+  },
+  resultFooter: {
+    marginTop: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  resultFooterText: {
+    color: palette.textMuted,
+    fontSize: 12,
+    fontWeight: "600",
+  },
 });

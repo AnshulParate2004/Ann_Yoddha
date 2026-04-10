@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Platform, StyleSheet, Text, View } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient";
 import { LayoutDashboard, Scan, User, MessageSquare, BarChart3 } from "lucide-react-native";
 
 import { useAuth } from "../context/AuthContext";
@@ -12,7 +13,7 @@ import Dashboard from "../screens/Dashboard";
 import Profile from "../screens/Profile";
 import Analytics from "../screens/Analytics";
 import Chat from "../screens/Chat";
-import { palette, radius, text } from "../theme/tokens";
+import { palette, radius, shadows, text } from "../theme/tokens";
 
 const Tab = createBottomTabNavigator();
 
@@ -65,26 +66,30 @@ export default function AppNavigator() {
           tabBarStyle: styles.tabBar,
           tabBarItemStyle: styles.tabItem,
           tabBarHideOnKeyboard: true,
-          headerStyle: styles.header,
           headerTintColor: "#fff",
           headerTitleStyle: styles.headerTitle,
+          headerTitleAlign: "left",
+          headerShadowVisible: false,
+          headerBackground: () => <LinearGradient colors={[...palette.gradientHero]} style={StyleSheet.absoluteFillObject} />,
           sceneStyle: { backgroundColor: palette.background },
           headerRight: () => null, // Logout moved to Profile screen
           tabBarIcon: ({ color, focused }) => {
-            if (route.name === "Dashboard") return <LayoutDashboard color={color} size={22} strokeWidth={focused ? 2.4 : 2.1} />;
-            if (route.name === "Diagnosis") return <Scan color={color} size={22} strokeWidth={focused ? 2.4 : 2.1} />;
-            if (route.name === "Analytics") return <BarChart3 color={color} size={22} strokeWidth={focused ? 2.4 : 2.1} />;
-            if (route.name === "Chat") return <MessageSquare color={color} size={22} strokeWidth={focused ? 2.4 : 2.1} />;
-            if (route.name === "Profile") return <User color={color} size={22} strokeWidth={focused ? 2.4 : 2.1} />;
-            return <LayoutDashboard color={color} size={22} strokeWidth={focused ? 2.4 : 2.1} />;
+            const icon =
+              route.name === "Dashboard" ? <LayoutDashboard color={color} size={20} strokeWidth={focused ? 2.5 : 2.1} /> :
+              route.name === "Diagnosis" ? <Scan color={color} size={20} strokeWidth={focused ? 2.5 : 2.1} /> :
+              route.name === "Analytics" ? <BarChart3 color={color} size={20} strokeWidth={focused ? 2.5 : 2.1} /> :
+              route.name === "Chat" ? <MessageSquare color={color} size={20} strokeWidth={focused ? 2.5 : 2.1} /> :
+              <User color={color} size={20} strokeWidth={focused ? 2.5 : 2.1} />;
+
+            return <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>{icon}</View>;
           },
         })}
       >
         <Tab.Screen name="Dashboard" component={Dashboard} options={{ title: "Overview", tabBarLabel: "Home" }} />
         <Tab.Screen name="Diagnosis" component={Scanner} options={{ title: "Scan Crop", tabBarLabel: "Scan" }} />
-        <Tab.Screen name="Analytics" component={Analytics} options={{ title: "Analytics" }} />
-        <Tab.Screen name="Chat" component={Chat} options={{ title: "Agronomist" }} />
-        <Tab.Screen name="Profile" component={Profile} options={{ title: "Profile" }} />
+        <Tab.Screen name="Analytics" component={Analytics} options={{ title: "Analytics", tabBarLabel: "Stats" }} />
+        <Tab.Screen name="Chat" component={Chat} options={{ title: "Agronomist", tabBarLabel: "Chat" }} />
+        <Tab.Screen name="Profile" component={Profile} options={{ title: "Profile", tabBarLabel: "Me" }} />
       </Tab.Navigator>
     </NavigationContainer>
   );
@@ -103,52 +108,40 @@ const styles = StyleSheet.create({
     color: palette.textSecondary,
     fontWeight: "700",
   },
-  header: {
-    backgroundColor: palette.primary,
-  },
   headerTitle: {
     fontWeight: "800",
     letterSpacing: 0.2,
-  },
-  logoutButton: {
-    marginRight: 12,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.28)",
+    fontSize: 17,
   },
   tabBar: {
-    height: Platform.OS === "ios" ? 84 : 74,
-    paddingBottom: Platform.OS === "ios" ? 18 : 10,
-    paddingTop: 8,
+    position: "absolute",
+    left: 12,
+    right: 12,
+    bottom: 12,
+    height: Platform.OS === "ios" ? 78 : 72,
+    paddingBottom: Platform.OS === "ios" ? 12 : 10,
+    paddingTop: 6,
     borderTopWidth: 0,
-    backgroundColor: "#fffef9",
-    shadowColor: "#101913",
-    shadowOpacity: 0.09,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: -4 },
-    elevation: 8,
+    borderRadius: radius.xl,
+    backgroundColor: "rgba(255,253,247,0.96)",
+    ...shadows.floating,
   },
   tabItem: {
     paddingVertical: 2,
   },
   tabLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: "700",
   },
-  scanIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+  iconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#e9ece7",
+    backgroundColor: "transparent",
   },
-  scanIconWrapFocused: {
-    backgroundColor: palette.primary,
+  iconWrapActive: {
+    backgroundColor: palette.primarySoft,
   },
 });

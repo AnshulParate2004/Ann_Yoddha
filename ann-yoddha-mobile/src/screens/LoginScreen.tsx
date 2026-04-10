@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Leaf, LockKeyhole, Mail } from "lucide-react-native";
 
 import { useAuth } from "../context/AuthContext";
@@ -52,21 +53,22 @@ export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.container}>
-      <View style={styles.blobTop} />
-      <View style={styles.blobBottom} />
+      <LinearGradient colors={[...palette.gradientCanvas]} style={StyleSheet.absoluteFillObject} />
+      <View style={styles.orbTop} />
+      <View style={styles.orbBottom} />
 
-      <ScrollView contentContainerStyle={styles.scrollWrap} keyboardShouldPersistTaps="handled">
-        <View style={styles.brandBlock}>
-          <View style={styles.brandIconWrap}>
-            <Leaf color={palette.primary} size={24} />
-          </View>
+      <ScrollView contentContainerStyle={styles.scrollWrap} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <View style={styles.brandHero}>
+          <LinearGradient colors={[...palette.gradientHero]} style={styles.brandBadge}>
+            <Leaf color={palette.white} size={24} />
+          </LinearGradient>
           <Text style={styles.brandTitle}>Ann Yoddha</Text>
-          <Text style={styles.brandSub}>Professional wheat diagnosis and field-ready treatment guidance.</Text>
+          <Text style={styles.brandSub}>Field-grade wheat diagnosis, expert recommendations, and AI voice chat built for daily use.</Text>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.title}>Welcome back</Text>
-          <Text style={styles.subtitle}>Sign in to continue scanning, saving, and syncing crop diagnoses.</Text>
+          <Text style={styles.title}>Sign in</Text>
+          <Text style={styles.subtitle}>Continue to scanning, synced history, agronomist chat, and voice guidance.</Text>
 
           <View style={styles.inputWrap}>
             <Mail color={palette.textMuted} size={16} />
@@ -119,46 +121,46 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: palette.background,
   },
-  blobTop: {
+  orbTop: {
     position: "absolute",
-    top: -90,
-    right: -40,
-    height: 230,
-    width: 230,
+    top: -110,
+    right: -60,
+    height: 240,
+    width: 240,
     borderRadius: 120,
-    backgroundColor: "#d5e6d8",
+    backgroundColor: "rgba(220, 235, 220, 0.9)",
   },
-  blobBottom: {
+  orbBottom: {
     position: "absolute",
     bottom: -70,
     left: -50,
-    height: 200,
-    width: 200,
-    borderRadius: 100,
-    backgroundColor: "#efe8d3",
+    height: 220,
+    width: 220,
+    borderRadius: 110,
+    backgroundColor: "rgba(244, 234, 210, 0.94)",
   },
   scrollWrap: {
     flexGrow: 1,
     justifyContent: "center",
     paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.xxl,
+    paddingVertical: spacing.xxxl,
     gap: spacing.xl,
   },
-  brandBlock: {
+  brandHero: {
     gap: spacing.sm,
   },
-  brandIconWrap: {
+  brandBadge: {
+    width: 52,
+    height: 52,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    height: 44,
-    width: 44,
-    borderRadius: radius.md,
-    backgroundColor: palette.primarySoft,
   },
   brandTitle: {
-    fontSize: text.hero,
+    fontSize: text.display,
+    lineHeight: 44,
     color: palette.textPrimary,
-    fontWeight: "800",
+    fontWeight: "900",
   },
   brandSub: {
     fontSize: text.body,
@@ -166,18 +168,18 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   card: {
-    backgroundColor: palette.surface,
+    backgroundColor: "rgba(255, 253, 247, 0.94)",
     borderRadius: radius.xl,
     padding: spacing.xl,
     borderWidth: 1,
     borderColor: palette.border,
     gap: spacing.md,
-    ...shadows.card,
+    ...shadows.floating,
   },
   title: {
     fontSize: text.subtitle,
     color: palette.textPrimary,
-    fontWeight: "800",
+    fontWeight: "900",
   },
   subtitle: {
     marginTop: -4,
@@ -192,7 +194,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.border,
     borderRadius: radius.md,
-    backgroundColor: palette.surfaceMuted,
+    backgroundColor: palette.surfaceRaised,
     paddingHorizontal: spacing.md,
     paddingVertical: 2,
   },
@@ -217,23 +219,24 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     alignItems: "center",
     paddingVertical: spacing.md,
+    ...shadows.card,
   },
   primaryText: {
     color: "#fff",
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: "800",
   },
   demoButton: {
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: "#cfdbc8",
-    backgroundColor: "#eff5ec",
+    borderColor: palette.borderStrong,
+    backgroundColor: palette.primarySoft,
     alignItems: "center",
     paddingVertical: spacing.md,
   },
   demoText: {
-    color: palette.primary,
-    fontWeight: "700",
+    color: palette.primaryDeep,
+    fontWeight: "800",
     fontSize: text.body,
   },
   secondaryButton: {
