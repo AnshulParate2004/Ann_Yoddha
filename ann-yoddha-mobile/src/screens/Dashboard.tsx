@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { Clock3, Cloud, CloudOff, MapPin, RefreshCw, ShieldAlert, Sprout, Zap } from "lucide-react-native";
 
@@ -8,7 +8,8 @@ import { getUnsyncedScans } from "../database/sqlite";
 import { getHistory as getCloudHistory } from "../api/analytics";
 import { getProfile } from "../api/profile";
 import { syncOfflineScans } from "../services/syncService";
-import { palette, radius, shadows, spacing, text } from "../theme/tokens";
+import { palette, radius, spacing, text } from "../theme/tokens";
+import { ActionButton, AppScreen, GradientCard, SectionHeading, StatusChip, SurfaceCard } from "../components/AppSurface";
 
 interface DashboardProps {
   navigation: {
@@ -24,6 +25,8 @@ interface StatusNotice {
 }
 
 export default function Dashboard({ navigation }: DashboardProps) {
+  const { width } = useWindowDimensions();
+  const sizeClass = width < 360 ? "tiny" : width <= 420 ? "compact" : "regular";
   const { token, user } = useAuth();
   const isFocused = useIsFocused();
   const [syncing, setSyncing] = useState(false);
@@ -37,6 +40,8 @@ export default function Dashboard({ navigation }: DashboardProps) {
     diseased: 0,
     pendingSync: 0,
   });
+  const [syncCenterVisible, setSyncCenterVisible] = useState(false);
+  const [syncAttempts, setSyncAttempts] = useState(0);
 
   useEffect(() => {
     if (isFocused) {
@@ -47,7 +52,6 @@ export default function Dashboard({ navigation }: DashboardProps) {
   const loadStats = async () => {
     setLoading(true);
     try {
-      // Fetch cloud history + profile + offline pending count in parallel — mirrors web Dashboard
       const [cloudRes, unsynced, profileData] = await Promise.all([
         token ? getCloudHistory(50, token) : Promise.resolve({ history: [] }),
         getUnsyncedScans(),
@@ -55,7 +59,7 @@ export default function Dashboard({ navigation }: DashboardProps) {
       ]);
 
       const history = cloudRes.history || [];
-      const healthy = history.filter((s: any) => s.disease_name?.toLowerCase() === "healthy").length;
+      const healthy = history.filter((scan: any) => scan.disease_name?.toLowerCase() === "healthy").length;
 
       setProfile(profileData);
       setLatestScan(history[0] ?? null);
@@ -65,8 +69,8 @@ export default function Dashboard({ navigation }: DashboardProps) {
         diseased: history.length - healthy,
         pendingSync: unsynced.length,
       });
-    } catch (err) {
-      console.error("Dashboard loadStats error:", err);
+    } catch (error) {
+      console.error("Dashboard loadStats error:", error);
     } finally {
       setLoading(false);
     }
@@ -95,8 +99,30 @@ export default function Dashboard({ navigation }: DashboardProps) {
     }
   };
 
+  const handleSyncWithRetry = async () => {
+    if (!token) return;
+    let attempt = 0;
+    const maxAttempts = 3;
+    setSyncAttempts(0);
+    while (attempt < maxAttempts) {
+      attempt += 1;
+      setSyncAttempts(attempt);
+      try {
+        const result = await syncOfflineScans(token);
+        await loadStats();
+        setNotice({ tone: "success", message: `${result.syncedCount} scan(s) synced.` });
+        return;
+      } catch {
+        if (attempt === maxAttempts) {
+          setNotice({ tone: "warning", message: "Sync retries exhausted. Please try again later." });
+        } else {
+          await new Promise((resolve) => setTimeout(resolve, 600 * 2 ** (attempt - 1)));
+        }
+      }
+    }
+  };
+
   const healthRate = stats.total > 0 ? Math.round((stats.healthy / stats.total) * 100) : 100;
-  // Cloud history records are always synced; local SQLite records may not be
   const latestIsSynced = latestScan?.is_synced !== undefined ? !!latestScan.is_synced : true;
   const latestStatus = latestScan ? (latestIsSynced ? "Saved to cloud" : "Saved offline, sync pending") : "No scans yet";
   const latestTreatment = latestScan
@@ -105,320 +131,336 @@ export default function Dashboard({ navigation }: DashboardProps) {
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+      <View style={styles.loadingWrap}>
         <ActivityIndicator size="large" color={palette.primary} />
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.heroCard}>
-        <Text style={styles.heroEyebrow}>Welcome, {profile?.name || user?.email?.split('@')[0] || 'Farmer'}</Text>
-        <Text style={styles.heroTitle}>Field Overview</Text>
+    <AppScreen>
+      <GradientCard>
+        <Text style={styles.heroEyebrow}>Field overview</Text>
+        <Text style={[styles.heroTitle, sizeClass !== "regular" && styles.heroTitleCompact]}>
+          Welcome, {profile?.name || user?.email?.split("@")[0] || "Farmer"}
+        </Text>
+        <Text style={styles.heroSubtitle}>
+          A cleaner snapshot of crop health, sync state, and the next action you should take.
+        </Text>
+
         {profile?.region ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2, marginBottom: 8 }}>
-            <MapPin color="#c8dfd2" size={13} />
-            <Text style={[styles.heroMetaText, { fontSize: 12 }]}>{profile.region}</Text>
+          <View style={styles.heroMetaRow}>
+            <MapPin color="#dbe9de" size={14} />
+            <Text style={styles.heroMetaText}>{profile.region}</Text>
           </View>
         ) : null}
-        <View style={styles.heroMetrics}>
-          <Text style={styles.heroScore}>{healthRate}%</Text>
+
+        <View style={[styles.heroStats, sizeClass === "tiny" && styles.heroStatsCompact]}>
           <View>
-            <Text style={styles.heroMetaLabel}>Healthy ratio</Text>
-            <Text style={styles.heroMetaText}>{stats.healthy} healthy out of {stats.total} scans</Text>
+            <Text style={[styles.heroScore, sizeClass !== "regular" && styles.heroScoreCompact]}>{healthRate}%</Text>
+            <Text style={styles.heroCaption}>Healthy ratio</Text>
+          </View>
+          <View style={styles.heroDivider} />
+          <View style={styles.heroStatColumn}>
+            <Text style={[styles.heroMetric, sizeClass !== "regular" && styles.heroMetricCompact]}>{stats.total}</Text>
+            <Text style={styles.heroMetaText}>Total scans tracked</Text>
+            <Text style={[styles.heroMetric, styles.heroMetricSmall, sizeClass !== "regular" && styles.heroMetricCompact]}>{stats.pendingSync}</Text>
+            <Text style={styles.heroMetaText}>Waiting to sync</Text>
           </View>
         </View>
-      </View>
+      </GradientCard>
 
       {notice ? (
-        <View style={[styles.notice, notice.tone === "success" ? styles.noticeSuccess : notice.tone === "warning" ? styles.noticeWarning : styles.noticeInfo]}>
+        <SurfaceCard style={[styles.noticeCard, notice.tone === "success" ? styles.noticeSuccess : notice.tone === "warning" ? styles.noticeWarning : styles.noticeInfo]}>
           <Text style={styles.noticeText}>{notice.message}</Text>
-        </View>
+        </SurfaceCard>
       ) : null}
 
-      <View style={styles.statsRow}>
-        <View style={styles.statCard}>
-          <Sprout color={palette.success} size={22} />
-          <Text style={styles.statNumber}>{stats.healthy}</Text>
-          <Text style={styles.statLabel}>Healthy</Text>
-        </View>
+      <View style={styles.metricGrid}>
+        <SurfaceCard style={styles.metricCard}>
+          <View style={[styles.metricIcon, styles.metricIconSuccess]}>
+            <Sprout color={palette.success} size={18} />
+          </View>
+          <Text style={styles.metricValue}>{stats.healthy}</Text>
+          <Text style={styles.metricLabel}>Healthy scans</Text>
+        </SurfaceCard>
 
-        <View style={styles.statCard}>
-          <ShieldAlert color={palette.danger} size={22} />
-          <Text style={styles.statNumber}>{stats.diseased}</Text>
-          <Text style={styles.statLabel}>Detected</Text>
-        </View>
+        <SurfaceCard style={styles.metricCard}>
+          <View style={[styles.metricIcon, styles.metricIconDanger]}>
+            <ShieldAlert color={palette.danger} size={18} />
+          </View>
+          <Text style={styles.metricValue}>{stats.diseased}</Text>
+          <Text style={styles.metricLabel}>Detected issues</Text>
+        </SurfaceCard>
 
-        <View style={styles.statCard}>
-          <CloudOff color={palette.warning} size={22} />
-          <Text style={styles.statNumber}>{stats.pendingSync}</Text>
-          <Text style={styles.statLabel}>Pending sync</Text>
-        </View>
+        <SurfaceCard style={styles.metricCard}>
+          <View style={[styles.metricIcon, styles.metricIconWarning]}>
+            <CloudOff color={palette.warning} size={18} />
+          </View>
+          <Text style={styles.metricValue}>{stats.pendingSync}</Text>
+          <Text style={styles.metricLabel}>Pending sync</Text>
+        </SurfaceCard>
       </View>
 
-      <View style={styles.latestCard}>
-        <View style={styles.latestHeader}>
-          <Text style={styles.sectionTitle}>Latest Diagnosis</Text>
-          <View style={[styles.statusPill, latestIsSynced ? styles.syncedPill : styles.pendingPill]}>
-            {latestIsSynced ? <Cloud color={palette.success} size={13} /> : <CloudOff color={palette.warning} size={13} />}
-            <Text style={[styles.statusPillText, latestIsSynced ? styles.syncedText : styles.pendingText]}>{latestStatus}</Text>
-          </View>
-        </View>
-
-        <Text style={styles.latestDisease}>{latestScan ? latestScan.disease_name : "No diagnosis yet"}</Text>
-        <Text style={styles.latestMeta}>
-          {latestScan ? `Confidence ${Math.round(latestScan.confidence * 100)}%` : "Capture one image to get started"}
-        </Text>
+      <SurfaceCard>
+        <SectionHeading
+          eyebrow="Latest"
+          title={latestScan ? latestScan.disease_name : "No diagnosis yet"}
+          subtitle={latestScan ? `Confidence ${(latestScan.confidence * 100).toFixed(1)}%` : "Capture one image to get started"}
+          right={<StatusChip label={latestStatus} tone={latestIsSynced ? "success" : "warning"} />}
+        />
         <Text style={styles.latestTreatment}>{latestTreatment}</Text>
-
         {latestScan ? (
-          <View style={styles.timestampRow}>
+          <View style={styles.metaRow}>
+            {latestIsSynced ? <Cloud color={palette.success} size={14} /> : <CloudOff color={palette.warning} size={14} />}
             <Clock3 color={palette.textMuted} size={14} />
-            <Text style={styles.timestamp}>{new Date(latestScan.timestamp).toLocaleString()}</Text>
+            <Text style={styles.metaText}>{new Date(latestScan.timestamp).toLocaleString()}</Text>
           </View>
         ) : null}
-      </View>
+      </SurfaceCard>
 
-      <View style={styles.actionsWrap}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
+      <SurfaceCard>
+        <SectionHeading
+          eyebrow="Actions"
+          title="What next"
+          subtitle="Keep the workflow short: scan, sync, then review deeper analytics only when needed."
+        />
+        <View style={styles.actionStack}>
+          <ActionButton
+            label="Scan crop now"
+            onPress={() => navigation.navigate("Diagnosis")}
+            icon={<Zap color={palette.white} size={18} />}
+          />
+          <ActionButton
+            label={syncing ? "Syncing offline scans..." : "Sync offline scans"}
+            onPress={handleSync}
+            disabled={syncing}
+            tone="secondary"
+            icon={syncing ? <ActivityIndicator color={palette.primary} /> : <RefreshCw color={palette.primary} size={18} />}
+          />
+          <ActionButton label="Open analytics" onPress={() => navigation.navigate("Analytics")} tone="ghost" />
+          <ActionButton label="Open sync center" onPress={() => setSyncCenterVisible(true)} tone="secondary" />
+        </View>
+      </SurfaceCard>
 
-        <TouchableOpacity style={styles.primaryAction} onPress={() => navigation.navigate("Diagnosis")}>
-          <Zap color="#fff" size={20} />
-          <Text style={styles.primaryActionText}>Scan Crop Now</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.secondaryAction} onPress={handleSync} disabled={syncing}>
-          {syncing ? <ActivityIndicator color={palette.info} /> : <RefreshCw color={palette.info} size={18} />}
-          <Text style={styles.secondaryActionText}>{syncing ? "Syncing..." : "Sync Offline Scans"}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.ghostAction} onPress={() => navigation.navigate("Analytics")}>
-          <Text style={styles.ghostActionText}>Open Full History</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+      <Modal visible={syncCenterVisible} transparent animationType="fade" onRequestClose={() => setSyncCenterVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <SurfaceCard style={styles.syncModal}>
+            <Text style={styles.syncTitle}>Sync Center</Text>
+            <Text style={styles.syncText}>Pending offline scans: {stats.pendingSync}</Text>
+            <Text style={styles.syncText}>Retry attempt: {syncAttempts || "-"}</Text>
+            <View style={styles.syncActions}>
+              <ActionButton label="Retry with backoff" onPress={handleSyncWithRetry} />
+              <Pressable onPress={() => setSyncCenterVisible(false)} style={styles.dismissButton}>
+                <Text style={styles.dismissText}>Close</Text>
+              </Pressable>
+            </View>
+          </SurfaceCard>
+        </View>
+      </Modal>
+    </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  loadingWrap: {
     flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: palette.background,
   },
-  content: {
-    padding: spacing.xl,
-    paddingBottom: 42,
-    gap: spacing.lg,
-  },
-  heroCard: {
-    backgroundColor: palette.primary,
-    borderRadius: radius.xl,
-    padding: spacing.xl,
-    ...shadows.card,
-  },
   heroEyebrow: {
-    color: "#c8dfd2",
+    color: "#dce8df",
     fontSize: text.caption,
-    fontWeight: "700",
+    fontWeight: "800",
     textTransform: "uppercase",
-    letterSpacing: 1.1,
+    letterSpacing: 1.2,
   },
   heroTitle: {
     marginTop: spacing.xs,
-    color: "#fff",
+    color: palette.white,
     fontSize: text.title,
-    fontWeight: "800",
-  },
-  heroMetrics: {
-    marginTop: spacing.lg,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.lg,
-  },
-  heroScore: {
-    color: "#fff",
-    fontSize: 54,
-    lineHeight: 58,
-    fontWeight: "900",
-  },
-  heroMetaLabel: {
-    color: "#dbebdf",
-    fontSize: text.caption,
-    fontWeight: "700",
-    textTransform: "uppercase",
-  },
-  heroMetaText: {
-    color: "#e5f0e9",
-    fontSize: text.body,
-    marginTop: 2,
-  },
-  notice: {
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderWidth: 1,
-  },
-  noticeInfo: {
-    backgroundColor: palette.infoSoft,
-    borderColor: "#c8d8ee",
-  },
-  noticeSuccess: {
-    backgroundColor: palette.successSoft,
-    borderColor: "#c9e6d3",
-  },
-  noticeWarning: {
-    backgroundColor: palette.warningSoft,
-    borderColor: "#f0d6ab",
-  },
-  noticeText: {
-    fontSize: text.body,
-    color: palette.textPrimary,
-    fontWeight: "600",
-  },
-  statsRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: palette.surface,
-    borderRadius: radius.lg,
-    paddingVertical: spacing.md,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: palette.border,
-  },
-  statNumber: {
-    marginTop: spacing.xs,
-    fontSize: text.subtitle,
-    color: palette.textPrimary,
-    fontWeight: "800",
-  },
-  statLabel: {
-    color: palette.textSecondary,
-    fontSize: text.caption,
+    lineHeight: 31,
     fontWeight: "700",
   },
-  latestCard: {
-    backgroundColor: palette.surface,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: palette.border,
-    ...shadows.card,
+  heroTitleCompact: {
+    fontSize: text.subtitle + 2,
+    lineHeight: 28,
   },
-  latestHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.sm,
+  heroSubtitle: {
+    marginTop: spacing.sm,
+    color: "#e6f0ea",
+    fontSize: text.body,
+    lineHeight: 22,
   },
-  sectionTitle: {
-    fontSize: text.subtitle,
-    color: palette.textPrimary,
-    fontWeight: "800",
-  },
-  statusPill: {
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
+  heroMetaRow: {
+    marginTop: spacing.md,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
-  syncedPill: {
-    backgroundColor: palette.successSoft,
+  heroMetaText: {
+    color: "#d8e7dd",
+    fontSize: 13,
+    fontWeight: "600",
   },
-  pendingPill: {
-    backgroundColor: palette.warningSoft,
+  heroStats: {
+    marginTop: spacing.xl,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.lg,
   },
-  statusPillText: {
+  heroStatsCompact: {
+    gap: spacing.md,
+  },
+  heroScore: {
+    color: palette.white,
+    fontSize: 54,
+    lineHeight: 58,
+    fontWeight: "700",
+  },
+  heroScoreCompact: {
+    fontSize: 40,
+    lineHeight: 44,
+  },
+  heroCaption: {
+    color: "#dce8df",
     fontSize: text.caption,
     fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
   },
-  syncedText: {
-    color: palette.success,
+  heroDivider: {
+    width: 1,
+    alignSelf: "stretch",
+    backgroundColor: "rgba(255,255,255,0.18)",
   },
-  pendingText: {
-    color: palette.warning,
+  heroStatColumn: {
+    flex: 1,
+    gap: 4,
   },
-  latestDisease: {
-    marginTop: spacing.md,
+  heroMetric: {
+    color: palette.white,
     fontSize: 28,
-    lineHeight: 32,
-    fontWeight: "900",
-    textTransform: "capitalize",
-    color: palette.textPrimary,
-  },
-  latestMeta: {
-    marginTop: spacing.xs,
-    color: palette.textSecondary,
-    fontSize: text.body,
     fontWeight: "700",
+  },
+  heroMetricCompact: {
+    fontSize: 22,
+  },
+  heroMetricSmall: {
+    marginTop: spacing.sm,
+    fontSize: 24,
+  },
+  noticeCard: {
+    paddingVertical: spacing.md,
+  },
+  noticeInfo: {
+    backgroundColor: palette.infoSoft,
+  },
+  noticeSuccess: {
+    backgroundColor: palette.successSoft,
+  },
+  noticeWarning: {
+    backgroundColor: palette.warningSoft,
+  },
+  noticeText: {
+    color: palette.textPrimary,
+    fontSize: text.body,
+    fontWeight: "600",
+  },
+  metricGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  metricCard: {
+    flexGrow: 1,
+    flexBasis: "31%",
+    minWidth: 104,
+    alignItems: "center",
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.sm,
+  },
+  metricIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  metricIconSuccess: {
+    backgroundColor: palette.successSoft,
+  },
+  metricIconDanger: {
+    backgroundColor: palette.dangerSoft,
+  },
+  metricIconWarning: {
+    backgroundColor: palette.warningSoft,
+  },
+  metricValue: {
+    marginTop: spacing.sm,
+    color: palette.textPrimary,
+    fontSize: 24,
+    fontWeight: "700",
+  },
+  metricLabel: {
+    marginTop: 4,
+    color: palette.textSecondary,
+    fontSize: text.caption,
+    fontWeight: "600",
+    letterSpacing: 0.4,
+    textAlign: "center",
   },
   latestTreatment: {
     marginTop: spacing.md,
     color: palette.textSecondary,
-    lineHeight: 21,
     fontSize: text.body,
+    lineHeight: 22,
   },
-  timestampRow: {
+  metaRow: {
     marginTop: spacing.md,
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
+    gap: 8,
   },
-  timestamp: {
+  metaText: {
     color: palette.textMuted,
-    fontSize: 13,
-    fontWeight: "600",
+    fontSize: 12,
+    fontWeight: "500",
   },
-  actionsWrap: {
+  actionStack: {
+    marginTop: spacing.md,
+    gap: spacing.md,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.28)",
+    justifyContent: "center",
+    padding: spacing.xl,
+  },
+  syncModal: {
     gap: spacing.sm,
   },
-  primaryAction: {
-    height: 54,
-    borderRadius: radius.md,
-    backgroundColor: palette.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 8,
-  },
-  primaryActionText: {
-    color: "#fff",
-    fontWeight: "800",
-    fontSize: 16,
-  },
-  secondaryAction: {
-    height: 50,
-    borderRadius: radius.md,
-    backgroundColor: palette.infoSoft,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 8,
-    borderWidth: 1,
-    borderColor: "#c7daef",
-  },
-  secondaryActionText: {
-    color: palette.info,
-    fontWeight: "800",
-    fontSize: text.body,
-  },
-  ghostAction: {
-    height: 48,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: palette.surfaceMuted,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ghostActionText: {
+  syncTitle: {
     color: palette.textPrimary,
+    fontSize: text.subtitle,
     fontWeight: "700",
+  },
+  syncText: {
+    color: palette.textSecondary,
     fontSize: text.body,
+  },
+  syncActions: {
+    marginTop: spacing.sm,
+    gap: spacing.sm,
+  },
+  dismissButton: {
+    alignItems: "center",
+    paddingVertical: spacing.sm,
+  },
+  dismissText: {
+    color: palette.textSecondary,
+    fontSize: text.body,
+    fontWeight: "600",
   },
 });

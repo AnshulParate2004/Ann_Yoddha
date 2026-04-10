@@ -1,11 +1,25 @@
 import { BACKEND_URL } from '../utils/constants';
 
+export interface ChatSession {
+  session_id: string;
+  first_message: string;
+  created_at: string;
+  message_count: number;
+}
+
+export interface ChatMessageRecord {
+  id: string;
+  role: string;
+  content: string;
+  created_at: string;
+}
+
 export async function getChatSessions(token: string) {
   const response = await fetch(`${BACKEND_URL}/api/v1/recommendations/chat/sessions`, {
     headers: { Authorization: `Bearer ${token}` }
   });
   if (!response.ok) throw new Error('Failed to fetch chat sessions');
-  return response.json();
+  return response.json() as Promise<{ sessions: ChatSession[] }>;
 }
 
 export async function getSessionMessages(sessionId: string, token: string) {
@@ -13,7 +27,7 @@ export async function getSessionMessages(sessionId: string, token: string) {
     headers: { Authorization: `Bearer ${token}` }
   });
   if (!response.ok) throw new Error('Failed to fetch chat messages');
-  return response.json();
+  return response.json() as Promise<{ messages: ChatMessageRecord[] }>;
 }
 
 // React Native fetch streaming workaround

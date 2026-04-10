@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { LockKeyhole, Mail, UserRoundPlus } from "lucide-react-native";
 
 import { useAuth } from "../context/AuthContext";
@@ -57,16 +58,17 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.container}>
-      <View style={styles.blobTop} />
-      <View style={styles.blobBottom} />
+      <LinearGradient colors={[...palette.gradientCanvas]} style={StyleSheet.absoluteFillObject} />
+      <View style={styles.orbTop} />
+      <View style={styles.orbBottom} />
 
-      <ScrollView contentContainerStyle={styles.scrollWrap} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={styles.scrollWrap} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={styles.brandBlock}>
           <View style={styles.brandIconWrap}>
-            <UserRoundPlus color={palette.primary} size={22} />
+            <UserRoundPlus color={palette.primaryDeep} size={22} />
           </View>
-          <Text style={styles.brandTitle}>Create Your Account</Text>
-          <Text style={styles.brandSub}>Set up one account to keep all diagnoses and sync history connected.</Text>
+          <Text style={styles.brandTitle}>Create your account</Text>
+          <Text style={styles.brandSub}>One secure account keeps diagnoses, analytics, and agronomist conversations in sync.</Text>
         </View>
 
         <View style={styles.card}>
@@ -116,7 +118,7 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
           <TouchableOpacity disabled={submitting} onPress={handleRegister} style={styles.primaryButton}>
-            {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>Create Account</Text>}
+            {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>Create account</Text>}
           </TouchableOpacity>
 
           <TouchableOpacity onPress={onSwitchToLogin} style={styles.secondaryButton}>
@@ -133,46 +135,47 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: palette.background,
   },
-  blobTop: {
+  orbTop: {
     position: "absolute",
     top: -100,
     left: -50,
-    height: 220,
-    width: 220,
+    height: 230,
+    width: 230,
     borderRadius: 120,
-    backgroundColor: "#dfe9d8",
+    backgroundColor: "rgba(220, 235, 220, 0.88)",
   },
-  blobBottom: {
+  orbBottom: {
     position: "absolute",
     bottom: -80,
     right: -40,
     height: 220,
     width: 220,
     borderRadius: 120,
-    backgroundColor: "#efe3cd",
+    backgroundColor: "rgba(244, 234, 210, 0.94)",
   },
   scrollWrap: {
     flexGrow: 1,
     justifyContent: "center",
     paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.xxl,
+    paddingVertical: spacing.xxxl,
     gap: spacing.xl,
   },
   brandBlock: {
     gap: spacing.sm,
+    paddingHorizontal: spacing.xs,
   },
   brandIconWrap: {
     alignItems: "center",
     justifyContent: "center",
-    height: 44,
-    width: 44,
-    borderRadius: radius.md,
-    backgroundColor: palette.primarySoft,
+    height: 48,
+    width: 48,
+    borderRadius: 16,
+    backgroundColor: palette.accentSoft,
   },
   brandTitle: {
     fontSize: text.title,
     color: palette.textPrimary,
-    fontWeight: "800",
+    fontWeight: "900",
   },
   brandSub: {
     fontSize: text.body,
@@ -180,18 +183,18 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   card: {
-    backgroundColor: palette.surface,
+    backgroundColor: "rgba(255, 253, 247, 0.94)",
     borderRadius: radius.xl,
     padding: spacing.xl,
     borderWidth: 1,
     borderColor: palette.border,
     gap: spacing.md,
-    ...shadows.card,
+    ...shadows.floating,
   },
   title: {
     fontSize: text.subtitle,
     color: palette.textPrimary,
-    fontWeight: "800",
+    fontWeight: "900",
   },
   subtitle: {
     marginTop: -4,
@@ -206,7 +209,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.border,
     borderRadius: radius.md,
-    backgroundColor: palette.surfaceMuted,
+    backgroundColor: palette.surfaceRaised,
     paddingHorizontal: spacing.md,
     paddingVertical: 2,
   },
@@ -231,11 +234,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     alignItems: "center",
     paddingVertical: spacing.md,
+    ...shadows.card,
   },
   primaryText: {
     color: "#fff",
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: "800",
   },
   secondaryButton: {
     alignItems: "center",
