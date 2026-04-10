@@ -88,10 +88,20 @@ const Dashboard = () => {
           >
             {history.data.history.map((d) => (
               <motion.div key={d.id} variants={item}>
-                <Card className="h-full border-primary/10 transition-shadow hover:shadow-md">
+                <Card className="h-full border-primary/10 transition-shadow hover:shadow-md overflow-hidden">
+                  {d.image_url && d.image_url.startsWith("http") && (
+                    <div className="h-36 w-full overflow-hidden bg-muted/30">
+                      <img
+                        src={d.image_url}
+                        alt={d.disease_name}
+                        className="h-full w-full object-cover"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                      />
+                    </div>
+                  )}
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between">
-                      <CardTitle className="text-lg font-semibold">{d.disease_name}</CardTitle>
+                      <CardTitle className="text-lg font-semibold capitalize">{d.disease_name}</CardTitle>
                       <Badge className={d.disease_name.toLowerCase() === "healthy" ? "bg-primary text-white" : "bg-muted"}>
                         {d.disease_name.toLowerCase() === "healthy" ? "Healthy" : "Saved"}
                       </Badge>

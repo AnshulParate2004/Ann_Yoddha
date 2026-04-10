@@ -16,6 +16,7 @@ from app.auth import authenticate_user, create_user
 from app.core.supabase_client import get_supabase
 from app.db.models import User
 from app.services.inference import InferenceError, predict_image
+from app.services.storage import upload_bytes
 from app.core.config import settings
 
 app = FastAPI(
@@ -75,6 +76,7 @@ class PredictionResponse(BaseModel):
     treatment: str
     timestamp: datetime
     status: str = "saved_to_cloud"
+    image_url: str | None = None
 
 
 class SyncScanRequest(BaseModel):
@@ -237,6 +239,13 @@ async def predict(
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Prediction failed") from exc
 
+    # Upload image to Supabase Storage and get back a public URL
+    import uuid
+    ext = (image.filename or "image.jpg").rsplit(".", 1)[-1]
+    object_name = f"scans/{current_user.id}/{uuid.uuid4().hex}.{ext}"
+    content_type = image.content_type or "image/jpeg"
+    public_image_url = upload_bytes(image_bytes, object_name, content_type=content_type)
+
     supabase = get_supabase()
     timestamp = datetime.utcnow().isoformat()
     db_response = supabase.table("scan_history").insert({
@@ -244,7 +253,7 @@ async def predict(
         "disease_name": str(result["disease_name"]),
         "confidence": float(result["confidence"]),
         "treatment": str(result["treatment"]),
-        "image_url": image.filename,
+        "image_url": public_image_url or image.filename,
         "timestamp": timestamp
     }).execute()
 
@@ -257,6 +266,7 @@ async def predict(
         "treatment": result["treatment"],
         "timestamp": timestamp,
         "status": "saved_to_cloud",
+        "image_url": public_image_url,
     }
 
 

@@ -22,6 +22,7 @@ const Diagnosis = () => {
     treatment: string;
     timestamp: string;
     status: string;
+    image_url?: string | null;
   } | null>(null);
   const [streamedTreatment, setStreamedTreatment] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -180,7 +181,11 @@ const Diagnosis = () => {
           <motion.div key="result" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} className="space-y-4">
             {preview && (
               <Card className="overflow-hidden border-primary/10">
-                <img src={preview} alt="Analyzed" className="mx-auto max-h-[300px] object-contain p-4" />
+                <img
+                  src={result.image_url || preview || ""}
+                  alt="Analyzed"
+                  className="mx-auto max-h-[300px] object-contain p-4"
+                />
               </Card>
             )}
             <Card className="border-primary/10">
