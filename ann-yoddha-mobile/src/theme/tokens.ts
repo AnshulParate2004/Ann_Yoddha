@@ -1,9 +1,9 @@
 export const palette = {
-  background: "#f3f1e8",
+  background: "#f8faf8",
   surface: "#ffffff",
-  surfaceMuted: "#f8f6ef",
-  primary: "#24523a",
-  primarySoft: "#dde9e1",
+  surfaceMuted: "#f4f7f5",
+  primary: "#2a6f4e",
+  primarySoft: "#dcf0e4",
   textPrimary: "#172120",
   textSecondary: "#5a6763",
   textMuted: "#7a8783",

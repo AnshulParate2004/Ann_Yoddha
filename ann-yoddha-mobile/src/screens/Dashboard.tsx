@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
-import { Clock3, Cloud, CloudOff, RefreshCw, ShieldAlert, Sprout, Zap } from "lucide-react-native";
+import { Clock3, Cloud, CloudOff, MapPin, RefreshCw, ShieldAlert, Sprout, Zap } from "lucide-react-native";
 
 import { useAuth } from "../context/AuthContext";
-import { getHistory, getUnsyncedScans, ScanResult } from "../database/sqlite";
+import { getUnsyncedScans } from "../database/sqlite";
+import { getHistory as getCloudHistory } from "../api/analytics";
+import { getProfile } from "../api/profile";
 import { syncOfflineScans } from "../services/syncService";
 import { palette, radius, shadows, spacing, text } from "../theme/tokens";
 
@@ -25,8 +27,10 @@ export default function Dashboard({ navigation }: DashboardProps) {
   const { token, user } = useAuth();
   const isFocused = useIsFocused();
   const [syncing, setSyncing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<StatusNotice | null>(null);
-  const [latestScan, setLatestScan] = useState<ScanResult | null>(null);
+  const [profile, setProfile] = useState<{ name: string; region?: string } | null>(null);
+  const [latestScan, setLatestScan] = useState<any | null>(null);
   const [stats, setStats] = useState({
     total: 0,
     healthy: 0,
@@ -41,16 +45,31 @@ export default function Dashboard({ navigation }: DashboardProps) {
   }, [isFocused]);
 
   const loadStats = async () => {
-    const [history, unsynced] = await Promise.all([getHistory(), getUnsyncedScans()]);
-    const healthy = history.filter((scan) => scan.disease_name.toLowerCase() === "healthy").length;
+    setLoading(true);
+    try {
+      // Fetch cloud history + profile + offline pending count in parallel — mirrors web Dashboard
+      const [cloudRes, unsynced, profileData] = await Promise.all([
+        token ? getCloudHistory(50, token) : Promise.resolve({ history: [] }),
+        getUnsyncedScans(),
+        token ? getProfile(token).catch(() => null) : Promise.resolve(null),
+      ]);
 
-    setLatestScan(history[0] ?? null);
-    setStats({
-      total: history.length,
-      healthy,
-      diseased: history.length - healthy,
-      pendingSync: unsynced.length,
-    });
+      const history = cloudRes.history || [];
+      const healthy = history.filter((s: any) => s.disease_name?.toLowerCase() === "healthy").length;
+
+      setProfile(profileData);
+      setLatestScan(history[0] ?? null);
+      setStats({
+        total: history.length,
+        healthy,
+        diseased: history.length - healthy,
+        pendingSync: unsynced.length,
+      });
+    } catch (err) {
+      console.error("Dashboard loadStats error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSync = async () => {
@@ -77,22 +96,37 @@ export default function Dashboard({ navigation }: DashboardProps) {
   };
 
   const healthRate = stats.total > 0 ? Math.round((stats.healthy / stats.total) * 100) : 100;
-  const latestStatus = latestScan ? (latestScan.is_synced ? "Saved to cloud" : "Saved offline, sync pending") : "No scans yet";
+  // Cloud history records are always synced; local SQLite records may not be
+  const latestIsSynced = latestScan?.is_synced !== undefined ? !!latestScan.is_synced : true;
+  const latestStatus = latestScan ? (latestIsSynced ? "Saved to cloud" : "Saved offline, sync pending") : "No scans yet";
   const latestTreatment = latestScan
     ? latestScan.treatment
     : "Start a crop scan to receive disease diagnosis and treatment guidance.";
 
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={palette.primary} />
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.heroCard}>
-        <Text style={styles.heroEyebrow}>Ann Yoddha</Text>
+        <Text style={styles.heroEyebrow}>Welcome, {profile?.name || user?.email?.split('@')[0] || 'Farmer'}</Text>
         <Text style={styles.heroTitle}>Field Overview</Text>
+        {profile?.region ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2, marginBottom: 8 }}>
+            <MapPin color="#c8dfd2" size={13} />
+            <Text style={[styles.heroMetaText, { fontSize: 12 }]}>{profile.region}</Text>
+          </View>
+        ) : null}
         <View style={styles.heroMetrics}>
           <Text style={styles.heroScore}>{healthRate}%</Text>
           <View>
             <Text style={styles.heroMetaLabel}>Healthy ratio</Text>
             <Text style={styles.heroMetaText}>{stats.healthy} healthy out of {stats.total} scans</Text>
-            <Text style={styles.heroMetaText}>{user?.email ?? "Not signed in"}</Text>
           </View>
         </View>
       </View>
@@ -126,9 +160,9 @@ export default function Dashboard({ navigation }: DashboardProps) {
       <View style={styles.latestCard}>
         <View style={styles.latestHeader}>
           <Text style={styles.sectionTitle}>Latest Diagnosis</Text>
-          <View style={[styles.statusPill, latestScan?.is_synced ? styles.syncedPill : styles.pendingPill]}>
-            {latestScan?.is_synced ? <Cloud color={palette.success} size={13} /> : <CloudOff color={palette.warning} size={13} />}
-            <Text style={[styles.statusPillText, latestScan?.is_synced ? styles.syncedText : styles.pendingText]}>{latestStatus}</Text>
+          <View style={[styles.statusPill, latestIsSynced ? styles.syncedPill : styles.pendingPill]}>
+            {latestIsSynced ? <Cloud color={palette.success} size={13} /> : <CloudOff color={palette.warning} size={13} />}
+            <Text style={[styles.statusPillText, latestIsSynced ? styles.syncedText : styles.pendingText]}>{latestStatus}</Text>
           </View>
         </View>
 
@@ -149,7 +183,7 @@ export default function Dashboard({ navigation }: DashboardProps) {
       <View style={styles.actionsWrap}>
         <Text style={styles.sectionTitle}>Quick Actions</Text>
 
-        <TouchableOpacity style={styles.primaryAction} onPress={() => navigation.navigate("Scanner")}>
+        <TouchableOpacity style={styles.primaryAction} onPress={() => navigation.navigate("Diagnosis")}>
           <Zap color="#fff" size={20} />
           <Text style={styles.primaryActionText}>Scan Crop Now</Text>
         </TouchableOpacity>
@@ -159,7 +193,7 @@ export default function Dashboard({ navigation }: DashboardProps) {
           <Text style={styles.secondaryActionText}>{syncing ? "Syncing..." : "Sync Offline Scans"}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.ghostAction} onPress={() => navigation.navigate("History")}>
+        <TouchableOpacity style={styles.ghostAction} onPress={() => navigation.navigate("Analytics")}>
           <Text style={styles.ghostActionText}>Open Full History</Text>
         </TouchableOpacity>
       </View>

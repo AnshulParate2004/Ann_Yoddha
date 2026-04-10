@@ -4,6 +4,9 @@ export interface AuthUser {
   id: number;
   email: string;
   role: string;
+  name?: string;
+  phone?: string;
+  region?: string;
 }
 
 export interface AuthResponse {

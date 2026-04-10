@@ -2,14 +2,16 @@ import React, { useState } from "react";
 import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer } from "@react-navigation/native";
-import { History as HistoryIcon, LayoutDashboard, LogOut, Scan } from "lucide-react-native";
+import { LayoutDashboard, Scan, User, MessageSquare, BarChart3 } from "lucide-react-native";
 
 import { useAuth } from "../context/AuthContext";
 import LoginScreen from "../screens/LoginScreen";
 import RegisterScreen from "../screens/RegisterScreen";
 import Scanner from "../screens/Scanner";
-import History from "../screens/History";
 import Dashboard from "../screens/Dashboard";
+import Profile from "../screens/Profile";
+import Analytics from "../screens/Analytics";
+import Chat from "../screens/Chat";
 import { palette, radius, text } from "../theme/tokens";
 
 const Tab = createBottomTabNavigator();
@@ -34,7 +36,7 @@ function LoadingScreen() {
 }
 
 export default function AppNavigator() {
-  const { loading, token, logout } = useAuth();
+  const { loading, token } = useAuth();
 
   if (loading) {
     return (
@@ -67,53 +69,22 @@ export default function AppNavigator() {
           headerTintColor: "#fff",
           headerTitleStyle: styles.headerTitle,
           sceneStyle: { backgroundColor: palette.background },
-          headerRight: () => (
-            <TouchableOpacity onPress={logout} style={styles.logoutButton} hitSlop={8}>
-              <LogOut color="#fff" size={17} />
-            </TouchableOpacity>
-          ),
+          headerRight: () => null, // Logout moved to Profile screen
           tabBarIcon: ({ color, focused }) => {
-            if (route.name === "Dashboard") {
-              return <LayoutDashboard color={color} size={22} strokeWidth={focused ? 2.4 : 2.1} />;
-            }
-
-            if (route.name === "Scanner") {
-              return (
-                <View style={[styles.scanIconWrap, focused && styles.scanIconWrapFocused]}>
-                  <Scan color={focused ? "#fff" : palette.textSecondary} size={19} strokeWidth={2.4} />
-                </View>
-              );
-            }
-
-            return <HistoryIcon color={color} size={22} strokeWidth={focused ? 2.4 : 2.1} />;
+            if (route.name === "Dashboard") return <LayoutDashboard color={color} size={22} strokeWidth={focused ? 2.4 : 2.1} />;
+            if (route.name === "Diagnosis") return <Scan color={color} size={22} strokeWidth={focused ? 2.4 : 2.1} />;
+            if (route.name === "Analytics") return <BarChart3 color={color} size={22} strokeWidth={focused ? 2.4 : 2.1} />;
+            if (route.name === "Chat") return <MessageSquare color={color} size={22} strokeWidth={focused ? 2.4 : 2.1} />;
+            if (route.name === "Profile") return <User color={color} size={22} strokeWidth={focused ? 2.4 : 2.1} />;
+            return <LayoutDashboard color={color} size={22} strokeWidth={focused ? 2.4 : 2.1} />;
           },
         })}
       >
-        <Tab.Screen
-          name="Dashboard"
-          component={Dashboard}
-          options={{
-            title: "Overview",
-            tabBarLabel: "Home",
-          }}
-        />
-
-        <Tab.Screen
-          name="Scanner"
-          component={Scanner}
-          options={{
-            title: "Scan Crop",
-            tabBarLabel: "Scan",
-          }}
-        />
-
-        <Tab.Screen
-          name="History"
-          component={History}
-          options={{
-            title: "History",
-          }}
-        />
+        <Tab.Screen name="Dashboard" component={Dashboard} options={{ title: "Overview", tabBarLabel: "Home" }} />
+        <Tab.Screen name="Diagnosis" component={Scanner} options={{ title: "Scan Crop", tabBarLabel: "Scan" }} />
+        <Tab.Screen name="Analytics" component={Analytics} options={{ title: "Analytics" }} />
+        <Tab.Screen name="Chat" component={Chat} options={{ title: "Agronomist" }} />
+        <Tab.Screen name="Profile" component={Profile} options={{ title: "Profile" }} />
       </Tab.Navigator>
     </NavigationContainer>
   );
