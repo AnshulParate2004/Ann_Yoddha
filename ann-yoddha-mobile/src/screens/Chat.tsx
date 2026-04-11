@@ -287,10 +287,6 @@ export default function Chat() {
       return;
     }
 
-    if (Platform.OS === "web") {
-      setVoiceError("Voice chat needs a native Expo build on mobile.");
-      return;
-    }
 
     if (isViewingPast) {
       setVoiceError("Start a new conversation before using voice chat.");
@@ -620,12 +616,6 @@ export default function Chat() {
             </SurfaceCard>
           ) : null}
 
-          {!isSpeechRecognitionAvailable ? (
-            <SurfaceCard style={styles.voiceBadgeCard} density="compact">
-              <Text style={styles.voiceBadgeText}>Voice unavailable in Expo Go</Text>
-            </SurfaceCard>
-          ) : null}
-
           {showJumpToLatest ? (
             <Pressable onPress={scrollToLatest} style={styles.jumpToLatest}>
               <Text style={styles.jumpToLatestText}>
@@ -651,11 +641,11 @@ export default function Chat() {
             <View style={styles.inputActions}>
               <Pressable
                 onPress={toggleVoiceMode}
-                disabled={isStreaming || isViewingPast || !isSpeechRecognitionAvailable}
+                disabled={isStreaming || isViewingPast}
                 style={[
                   styles.roundButton,
                   voiceMode !== "inactive" ? styles.roundButtonActive : null,
-                  (isStreaming || isViewingPast || !isSpeechRecognitionAvailable) && styles.roundButtonDisabled,
+                  (isStreaming || isViewingPast) && styles.roundButtonDisabled,
                 ]}
               >
                 {voiceMode !== "inactive" ? <MicOff color={palette.white} size={18} /> : <Mic color={palette.primary} size={18} />}

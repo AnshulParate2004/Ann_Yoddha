@@ -15,8 +15,8 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Ann Yoddha uses the microphone for hands-free agronomy voice chat.",
-        "NSSpeechRecognitionUsageDescription": "Ann Yoddha converts your voice into questions for the agronomist assistant."
+        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to use the microphone for voice chat.",
+        "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to recognize speech for agronomy queries."
       }
     },
     "android": {
@@ -27,8 +27,10 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
+        "android.permission.RECORD_AUDIO",
         "android.permission.RECORD_AUDIO"
-      ]
+      ],
+      "package": "com.anonymous.annyoddhamobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"

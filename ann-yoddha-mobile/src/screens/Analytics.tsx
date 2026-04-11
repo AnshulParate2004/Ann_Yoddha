@@ -103,10 +103,10 @@ export default function Analytics() {
   ];
 
   const lineData = {
-    labels: trend.filter((_, index) => index % 2 === 0).map((item) => item.label),
+    labels: trend.map((item, index) => (index % 3 === 0 ? item.label : "")),
     datasets: [
-      { data: trend.filter((_, index) => index % 2 === 0).map((item) => item.diseased), color: () => palette.danger, strokeWidth: 2 },
-      { data: trend.filter((_, index) => index % 2 === 0).map((item) => item.healthy), color: () => palette.success, strokeWidth: 2 },
+      { data: trend.map((item) => item.diseased), color: () => palette.danger, strokeWidth: 2 },
+      { data: trend.map((item) => item.healthy), color: () => palette.success, strokeWidth: 2 },
     ],
     legend: ["Detected", "Healthy"],
   };
