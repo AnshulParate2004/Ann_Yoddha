@@ -11,23 +11,15 @@ export interface ScanResult {
   is_synced: number; 
 }
 
-// Memory-only storage for Web so the UI doesn't break
 let webHistory: ScanResult[] = [];
 
-// Helper to get DB only on mobile
-const getDb = () => {
-  if (Platform.OS === 'web') return null;
-  return SQLite.openDatabaseSync('ann_yoddha.db');
-};
+// Create a single database instance
+const db = Platform.OS === 'web' ? null : SQLite.openDatabaseSync('ann_yoddha.db');
 
 export const initDatabase = async () => {
-  if (Platform.OS === 'web') {
-    console.log("Web Mode: SQLite initialization skipped.");
-    return;
-  }
-
-  const db = getDb();
-  await db!.execAsync(`
+  if (Platform.OS === 'web') return;
+  // Make sure table exists using synchronous exec so it's guaranteed
+  db!.execSync(`
     CREATE TABLE IF NOT EXISTS scans (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       disease_name TEXT,
@@ -48,7 +40,6 @@ export const saveScan = async (scan: ScanResult) => {
     return { lastInsertRowId: savedScan.id };
   }
 
-  const db = getDb();
   return await db!.runAsync(
     'INSERT INTO scans (disease_name, confidence, treatment, image_uri, timestamp, is_synced) VALUES (?, ?, ?, ?, ?, ?)',
     [scan.disease_name, scan.confidence, scan.treatment, scan.image_uri, scan.timestamp, scan.is_synced]
@@ -60,7 +51,6 @@ export const getHistory = async (): Promise<ScanResult[]> => {
     return webHistory;
   }
 
-  const db = getDb();
   return await db!.getAllAsync('SELECT * FROM scans ORDER BY id DESC');
 };
 
@@ -69,7 +59,6 @@ export const getUnsyncedScans = async (): Promise<ScanResult[]> => {
     return webHistory.filter((scan) => scan.is_synced === 0);
   }
 
-  const db = getDb();
   return await db!.getAllAsync('SELECT * FROM scans WHERE is_synced = 0 ORDER BY id ASC');
 };
 
@@ -85,7 +74,6 @@ export const markScansSynced = async (ids: number[]) => {
     return;
   }
 
-  const db = getDb();
   const placeholders = ids.map(() => '?').join(', ');
   await db!.runAsync(`UPDATE scans SET is_synced = 1 WHERE id IN (${placeholders})`, ids);
 };
