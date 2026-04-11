@@ -6,9 +6,8 @@ from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
 
-import numpy as np
 from PIL import Image, UnidentifiedImageError
-from tensorflow import keras
+from ultralytics import YOLO
 
 CLASS_NAMES = [
     "yellow rust",
@@ -30,8 +29,7 @@ CLASS_NAMES = [
 
 UNCERTAIN_LABEL = "uncertain"
 CONFIDENCE_THRESHOLD = 0.10
-IMAGE_SIZE = (224, 224)
-MODEL_PATH = Path(__file__).resolve().parents[2] / "models" / "wheat_model.keras"
+MODEL_PATH = Path(__file__).resolve().parents[2] / "models" / "best.pt"
 
 TREATMENTS = {
     "yellow rust": "Spray a triazole fungicide early and remove heavily infected leaves from the field margin.",
@@ -59,35 +57,39 @@ class InferenceError(Exception):
 
 @lru_cache(maxsize=1)
 def load_model():
-    """Load the trained Keras model once per process."""
-    return keras.models.load_model(MODEL_PATH)
+    """Load the trained YOLO model once per process."""
+    return YOLO(MODEL_PATH)
 
 
-def _preprocess_image(image_bytes: bytes) -> np.ndarray:
+def predict_image(image_bytes: bytes) -> dict[str, float | str]:
+    """Run image inference and map the result to a disease label and treatment."""
     try:
         image = Image.open(BytesIO(image_bytes)).convert("RGB")
     except (UnidentifiedImageError, OSError) as exc:
         raise InferenceError("Uploaded file is not a valid image") from exc
 
-    resized = image.resize(IMAGE_SIZE)
-    normalized = np.asarray(resized, dtype=np.float32) / 255.0
-    return np.expand_dims(normalized, axis=0)
-
-
-def predict_image(image_bytes: bytes) -> dict[str, float | str]:
-    """Run image inference and map the result to a disease label and treatment."""
     model = load_model()
-    input_tensor = _preprocess_image(image_bytes)
-    probabilities = np.asarray(model.predict(input_tensor, verbose=0))[0]
+    results = model.predict(image, verbose=False)
+    result = results[0]
 
-    top_index = int(np.argmax(probabilities))
-    confidence = float(probabilities[top_index])
-    predicted_label = CLASS_NAMES[top_index]
+    if result.boxes is not None and len(result.boxes) > 0:
+        import numpy as np
+        confs = result.boxes.conf.cpu().numpy()
+        max_idx = int(np.argmax(confs))
+        top_index = int(result.boxes.cls[max_idx].item())
+        confidence = float(confs[max_idx])
+        
+        raw_label = result.names[top_index]
+        predicted_label = raw_label.replace("_", " ")
+    else:
+        confidence = 0.0
+        predicted_label = UNCERTAIN_LABEL
+
     disease_name = predicted_label if confidence >= CONFIDENCE_THRESHOLD else UNCERTAIN_LABEL
 
     return {
         "disease_name": disease_name,
         "confidence": confidence,
-        "treatment": TREATMENTS[disease_name],
+        "treatment": TREATMENTS.get(disease_name, TREATMENTS[UNCERTAIN_LABEL]),
         "predicted_label": predicted_label,
     }

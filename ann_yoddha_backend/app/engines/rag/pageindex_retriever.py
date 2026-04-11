@@ -167,6 +167,7 @@ Instructions:
 - Give a single, clear, direct answer.
 - Do NOT repeat yourself or add a second paragraph restating your uncertainty after your answer.
 - If the context does not contain enough information to answer, respond with exactly one sentence explaining that you could not find the answer in the document.
+- Your answers may be spoken aloud by a Text-to-Speech system. Provide plain text ONLY. Avoid formatting like asterisks (*), dashes (-), or underscores (_).
 """
     client = _get_azure_client()
     response = client.chat.completions.create(
@@ -233,6 +234,7 @@ Instructions:
 - Provide a clear, direct answer based ONLY on the search results provided.
 - Focus on practical advice for an Indian farmer.
 - Mention that this info is from a web search fallback.
+- Your answers may be spoken aloud by a Text-to-Speech system. Provide plain text ONLY. Avoid formatting like asterisks (*), dashes (-), or underscores (_).
 """
     client = _get_azure_client()
     response = client.chat.completions.create(
@@ -306,6 +308,7 @@ Instructions:
 - Provide a clear, direct answer based ONLY on the search results provided.
 - Focus on practical advice for an Indian farmer.
 - Mention that this info is from a web search fallback.
+- Your answers may be spoken aloud by a Text-to-Speech system. Provide plain text ONLY. Avoid formatting like asterisks (*), dashes (-), or underscores (_).
 """
     client = _get_azure_client()
     response = client.chat.completions.create(
