@@ -28,7 +28,7 @@ CLASS_NAMES = [
 ]
 
 UNCERTAIN_LABEL = "uncertain"
-CONFIDENCE_THRESHOLD = 0.10
+CONFIDENCE_THRESHOLD = 0.50
 MODEL_PATH = Path(__file__).resolve().parents[2] / "models" / "best.pt"
 
 TREATMENTS = {
