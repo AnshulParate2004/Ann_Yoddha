@@ -2,6 +2,24 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 
+# Dynamically get the current Wi-Fi or Ethernet IPv4 address
+$ipV4 = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias 'Wi-Fi', 'Ethernet' -ErrorAction SilentlyContinue | Where-Object { $_.PrefixOrigin -ne 'WellKnown' -and $_.IPAddress -like '*.*.*.*' }).IPAddress | Select-Object -First 1
+
+if (-not $ipV4) {
+    # Fallback if no specific interface matches
+    $ipV4 = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.PrefixOrigin -ne 'WellKnown' -and $_.IPAddress -Match "^192\.|^172\.|^10\." }).IPAddress | Select-Object -First 1
+}
+
+if ($ipV4) {
+    Write-Host "Detected Local IP: $ipV4"
+    # Update the .env file in the mobile app directory
+    $envPath = "$repoRoot\ann-yoddha-mobile\.env"
+    "EXPO_PUBLIC_BACKEND_URL=http://$($ipV4):8000" | Out-File -FilePath $envPath -Encoding utf8
+    Write-Host "Updated mobile .env with EXPO_PUBLIC_BACKEND_URL=http://$($ipV4):8000"
+} else {
+    Write-Host "Could not detect local IP. Ensure you are connected to a network." -ForegroundColor Red
+}
+
 function Start-AppWindow {
     param(
         [string]$Title,
@@ -23,5 +41,7 @@ Start-AppWindow -Title "Ann Yoddha Web" -Command "Set-Location '$repoRoot\ann-yo
 Start-AppWindow -Title "Ann Yoddha Mobile" -Command "Set-Location '$repoRoot\ann-yoddha-mobile'; npx expo start --lan -c"
 
 Write-Host "Started backend, web, and mobile in separate terminals."
-Write-Host "Backend: http://172.16.204.191:8000"
-Write-Host "Web: http://172.16.204.191:5173"
+if ($ipV4) {
+    Write-Host "Backend: http://$($ipV4):8000"
+    Write-Host "Web: http://$($ipV4):5173"
+}

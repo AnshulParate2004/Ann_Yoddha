@@ -16,3 +16,10 @@ __pycache__/
 .vscode/
 .DS_Store
 *.log
+
+# Model artifacts
+ann-test/ann-test/Artifacts/last.pt
+ann-test/ann-test/yolo-model-weights/
+ann-test/ann-test/old_snn_best.pt
+ann-test/ann-test/root/
+Research/ann-test/yolo-model-weights/

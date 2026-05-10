@@ -1,0 +1,21 @@
+names:
+- aphid
+- black_rust
+- blast
+- brown_rust
+- common_root_rot
+- fusarium_head_blight
+- healthy
+- leaf_blight
+- mildew
+- mite
+- septoria
+- smut
+- stem_fly
+- tan_spot
+- yellow_rust
+nc: 15
+path: /kaggle/input/datasets/anshulnp2004/wheat-disease-yolo
+test: images/test
+train: images/train
+val: images/val

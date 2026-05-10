@@ -1,0 +1,36 @@
+description: Ultralytics YOLOv12n model trained on /kaggle/working/wheat_data.yaml
+author: Ultralytics
+date: '2026-04-29T04:22:24.531551'
+version: 8.4.43
+license: AGPL-3.0 License (https://ultralytics.com/license)
+docs: https://docs.ultralytics.com
+stride: 32
+task: detect
+batch: 1
+imgsz:
+- 640
+- 640
+names:
+  0: aphid
+  1: black_rust
+  2: blast
+  3: brown_rust
+  4: common_root_rot
+  5: fusarium_head_blight
+  6: healthy
+  7: leaf_blight
+  8: mildew
+  9: mite
+  10: septoria
+  11: smut
+  12: stem_fly
+  13: tan_spot
+  14: yellow_rust
+args:
+  batch: 1
+  fraction: 1.0
+  half: false
+  int8: false
+  nms: false
+channels: 3
+end2end: false
